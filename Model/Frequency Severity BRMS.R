@@ -6,7 +6,8 @@ library(purrr)
 library(tidyr)
 library(renv)
 
-options(stringsAsFactors = FALSE)
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
 
 #### Simulate Frequency Data ####
 
@@ -15,10 +16,10 @@ options(stringsAsFactors = FALSE)
 #' to work with multiple rating factors.
 
 
-regions = c("EMEA")
+regions = c("EMEA", "USC")
 
 freq_n = 10e3
-freq_lambda_vec = c(EMEA = 2)
+freq_lambda_vec = c(EMEA = 2, USC = 3)
 
 freq_data =
   data.frame(
@@ -26,6 +27,7 @@ freq_data =
     freq = TRUE,
     sev = FALSE,
     ded = runif(freq_n, 1e3, 10e3),
+    lim = runif(freq_n, 25e3, 50e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
   mutate(
@@ -36,18 +38,20 @@ freq_data =
 
 #### Simulate severity Data ####
 
-sev_mu_vec = c(EMEA = 8)
-sev_sigma_vec = c(EMEA = 1.5)
+sev_mu_vec = c(EMEA = 8, USC = 8)
+sev_sigma_vec = c(EMEA = 1, USC = 1)
 
 sev_data =
   data.frame(
     ded = rep(freq_data$ded,
               freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
     region = rep(freq_data$region,
               freq_data$claimcount_fgu)
   ) %>%
   mutate(
-    loss =
+    loss_uncapped =
       unlist(
         lapply(
           seq(freq_n),
@@ -65,12 +69,14 @@ sev_data =
     pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
   ) %>% 
   filter(
-    loss > ded
+    loss_uncapped > ded
   ) %>%
   mutate(
     claim_id = row_number(),
     freq = FALSE,
     sev = TRUE,
+    lim_exceed = as.integer(loss_uncapped >= lim),
+    loss = pmin(loss_uncapped, lim),
     claimcount = 0,
     claimcount_fgu = 0
   )
@@ -100,27 +106,28 @@ full_data =
 
 #### Multivariate Model ####
 
-stanvars =
+stanvars_lik =
   "
   nlp_claimcount_f1  = 
     nlp_claimcount_f1 + 
       log(1 - lognormal_cdf(
               ded, 
-              Intercept_loss, 
-              Intercept_sigma_loss)
+              Intercept_loss + X_claimcount_f1[, 2:K_claimcount_f1] *  b_loss, 
+              Intercept_sigma_loss + X_claimcount_f1[, 2:K_claimcount_f1] * b_sigma_loss
+              )
               );
   "
 
-
 fit_freq = 
-  bf(claimcount | subset(freq) ~ f1,
-     f1 ~ 1,
+  bf(claimcount | subset(freq) ~ 
+       f1 ,
+     f1 ~ 1 + region,
      nl = TRUE) + 
   poisson()
 
 fit_sev = 
-  bf(loss | subset(sev) + trunc(lb = ded) ~ 1,
-     sigma ~ 1
+  bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ 1 + region,
+     sigma ~ 1 + region
   ) + 
   lognormal()
 
@@ -130,7 +137,7 @@ mv_model_fit =
       data = full_data,
       stanvars =
         c(stanvar(
-          scode = stanvars,
+          scode = stanvars_lik,
           block = "likelihood"
         ),
         stanvar(
@@ -157,65 +164,174 @@ mv_model_fit =
       chains = 1,
       iter = 1000,
       warmup = 250,
-      control = list(adapt_delta = 0.99,
+      control = list(adapt_delta = 0.999,
                      max_treedepth = 10)
   )
 
 #### Results ####
 
-
-model_pred_sev_mu =
-  posterior_linpred(
-    mv_model_fit,
-    resp = "loss"
+model_post_samples =
+  posterior_samples(
+    mv_model_fit
   )
 
-model_pred_sev_sigma =
-  posterior_epred(
-    mv_model_fit,
-    resp = "loss",
-    dpar = "sigma"
+save(
+  full_data,
+  mv_model_fit,
+  model_post_samples,
+  file = "Model/mv_model_fit.RData"
+)
+
+sev_output =
+  sev_data %>%
+  mutate(
+    mu_pred = 
+      posterior_linpred(
+        mv_model_fit,
+        resp = "loss"
+      ) %>%
+      colMeans(),
+    mu_pred_q025 = 
+      posterior_linpred(
+        mv_model_fit,
+        resp = "loss"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.025)),
+    mu_pred_q975 = 
+      posterior_linpred(
+        mv_model_fit,
+        resp = "loss"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.975)),
+    
+    sigma_pred = 
+      posterior_epred(
+        mv_model_fit,
+        resp = "loss",
+        dpar = "sigma"
+        ) %>%
+      colMeans(),
+    sigma_pred_q025 = 
+      posterior_epred(
+        mv_model_fit,
+        resp = "loss",
+        dpar = "sigma"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.025)),
+    sigma_pred_q975 = 
+      posterior_epred(
+        mv_model_fit,
+        resp = "loss",
+        dpar = "sigma"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.975))
   )
 
-model_pred_freq =
-  posterior_epred(
-    mv_model_fit,
-    resp = "claimcount"
+sev_output_mean =
+  sev_output %>%
+  group_by(
+    region
+  ) %>%
+  summarise(
+    mu_pred_mean = mean(mu_pred),
+    sigma_pred_mean = mean(sigma_pred)
+  ) %>%
+  ungroup()
+
+sev_output_mean =
+  sev_output %>%
+  group_by(
+    region
+  ) %>%
+  summarise(
+    Intercept_loss = mean(mu_pred),
+    Intercept_sigma_loss = mean(sigma_pred)
+  ) %>%
+  ungroup()
+
+freq_output =
+  freq_data_net %>%
+  mutate(
+    lambda_pred = 
+      posterior_epred(
+        mv_model_fit,
+        newdata = 
+          full_data %>%
+          left_join(
+            sev_output_mean,
+            by = "region"
+          ) %>%
+          mutate(ded = 0),
+        resp = "claimcount"
+        ) %>%
+      colMeans(),
+    
+    lambda_pred_q025 = 
+      posterior_epred(
+        mv_model_fit,
+        newdata = 
+          full_data %>%
+          left_join(
+            sev_output_mean,
+            by = "region"
+          ) %>%
+          mutate(ded = 0),
+        resp = "claimcount"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.025)),
+    
+    lambda_pred_q975 = 
+      posterior_epred(
+        mv_model_fit,
+        newdata = 
+          full_data %>%
+          left_join(
+            sev_output_mean,
+            by = "region"
+          ) %>%
+          mutate(ded = 0),
+        resp = "claimcount"
+      ) %>%
+      apply(2, function(x) quantile(x, 0.975))
   )
 
 model_compare =
-  freq_data_net %>%
-  mutate(
-    lambda = freq_lambda,
-    pred_lambda   = colMeans(model_pred_freq) /
-      (1 - plnorm(ded,
-                  mean(model_pred_sev_mu),
-                  mean(model_pred_sev_sigma))
-      )
+  freq_output %>%
+  group_by(
+    region
   ) %>%
-  summarise(
-    pred_lambda = mean(pred_lambda)
+  summarise_at(
+    vars(
+      lambda_pred,
+      lambda_pred_q025,
+      lambda_pred_q975
+    ),
+    mean
   ) %>%
   ungroup() %>%
-  bind_cols(
-    sev_data %>%
-      mutate(
-        mu    = colMeans(model_pred_sev_mu),
-        sigma = colMeans(model_pred_sev_sigma)
+  left_join(
+    sev_output %>%
+    group_by(
+      region
+    ) %>%
+      summarise_at(
+        vars(
+          mu_pred,
+          mu_pred_q025,
+          mu_pred_q975,
+          
+          sigma_pred,
+          sigma_pred_q025,
+          sigma_pred_q975
+        ),
+        mean
       ) %>%
-      summarise(
-        pred_mu    = mean(mu),
-        pred_sigma = mean(sigma)
-      ) %>%
-      ungroup()
-  ) %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "par",
-    values_to = "pred"
+      ungroup(),
+    by = "region"
   ) %>%
   mutate(
-    actual = c(freq_lambda_vec, sev_mu_vec, sev_sigma_vec),
-    diff = paste0(round(100 * (1 - pred / actual), 1), "%"),
-    pred = round(pred, 3)
-  )
+    mu_actual     = sev_mu_vec[region],
+    sigma_actual  = sev_sigma_vec[region],
+    lambda_actual = freq_lambda_vec[region]
+  ) %>%
+  select(sort(names(.)))
