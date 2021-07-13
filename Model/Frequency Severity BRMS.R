@@ -14,10 +14,9 @@ options(stringsAsFactors = FALSE)
 #' This is just a placeholder until the next stage where we adapt the model
 #' to work with multiple rating factors.
 
-
 regions = c("EMEA")
 
-freq_n = 10e3
+freq_n = 25e3
 freq_lambda_vec = c(EMEA = 2)
 
 freq_data =
@@ -114,7 +113,7 @@ stanvars =
 
 fit_freq = 
   bf(claimcount | subset(freq) ~ f1,
-     f1 ~ 1,
+     f1 ~ 1 + region,
      nl = TRUE) + 
   poisson()
 
