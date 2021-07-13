@@ -15,10 +15,11 @@ options(stringsAsFactors = FALSE,
 #' This is just a placeholder until the next stage where we adapt the model
 #' to work with multiple rating factors.
 
+set.seed(123456)
 
 regions = c("EMEA", "USC")
 
-freq_n = 10e3
+freq_n = 5e3
 freq_lambda_vec = c(EMEA = 2, USC = 3)
 
 freq_data =
@@ -38,8 +39,8 @@ freq_data =
 
 #### Simulate severity Data ####
 
-sev_mu_vec = c(EMEA = 8, USC = 8)
-sev_sigma_vec = c(EMEA = 1, USC = 1)
+sev_mu_vec = c(EMEA = 8, USC = 9)
+sev_sigma_vec = c(EMEA = 1, USC = 1.5)
 
 sev_data =
   data.frame(
@@ -112,15 +113,14 @@ stanvars_lik =
     nlp_claimcount_f1 + 
       log(1 - lognormal_cdf(
               ded, 
-              Intercept_loss + X_claimcount_f1[, 2:K_claimcount_f1] *  b_loss, 
-              Intercept_sigma_loss + X_claimcount_f1[, 2:K_claimcount_f1] * b_sigma_loss
+              Intercept_loss + X_claimcount_f1[, 2:K_loss] * b_loss, 
+              exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_loss] * b_sigma_loss)
               )
               );
   "
 
 fit_freq = 
-  bf(claimcount | subset(freq) ~ 
-       f1 ,
+  bf(claimcount | subset(freq) ~ f1 ,
      f1 ~ 1 + region,
      nl = TRUE) + 
   poisson()
@@ -182,8 +182,11 @@ save(
   file = "Model/mv_model_fit.RData"
 )
 
+base::load(file = "Model/mv_model_fit.RData")
+
 sev_output =
-  sev_data %>%
+  full_data %>%
+  filter(sev) %>%
   mutate(
     mu_pred = 
       posterior_linpred(
@@ -253,7 +256,7 @@ freq_output =
   freq_data_net %>%
   mutate(
     lambda_pred = 
-      posterior_epred(
+      posterior_linpred(
         mv_model_fit,
         newdata = 
           full_data %>%
@@ -267,7 +270,7 @@ freq_output =
       colMeans(),
     
     lambda_pred_q025 = 
-      posterior_epred(
+      posterior_linpred(
         mv_model_fit,
         newdata = 
           full_data %>%
@@ -281,7 +284,7 @@ freq_output =
       apply(2, function(x) quantile(x, 0.025)),
     
     lambda_pred_q975 = 
-      posterior_epred(
+      posterior_linpred(
         mv_model_fit,
         newdata = 
           full_data %>%
