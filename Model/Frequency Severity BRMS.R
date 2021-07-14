@@ -113,8 +113,8 @@ stanvars_lik =
     nlp_claimcount_f1 + 
       log(1 - lognormal_cdf(
               ded, 
-              Intercept_loss + X_claimcount_f1[, 2:K_loss] * b_loss, 
-              exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_loss] * b_sigma_loss)
+              X_claimcount_f1[, 1:K_loss_s1] * b_loss_s1, 
+              exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_sigma_loss] * b_sigma_loss)
               )
               );
   "
@@ -126,8 +126,10 @@ fit_freq =
   poisson()
 
 fit_sev = 
-  bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ 1 + region,
-     sigma ~ 1 + region
+  bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ s1,
+     s1 ~ 1 + region,
+     sigma ~ 1 + region,
+     nl = TRUE
   ) + 
   lognormal()
 
@@ -136,13 +138,14 @@ mv_model_fit =
   brm(fit_freq + fit_sev + set_rescor(FALSE),
       data = full_data,
       stanvars =
-        c(stanvar(
+        c(
+          stanvar(
+            x = freq_data_net$ded,
+            name = "ded"
+            ),
+        stanvar(
           scode = stanvars_lik,
           block = "likelihood"
-        ),
-        stanvar(
-          x = freq_data_net$ded,
-          name = "ded"
         )
         ),
       prior = 
@@ -153,17 +156,19 @@ mv_model_fit =
                 nlpar = f1),
           
           prior(normal(8, 2),
-                class = Intercept,
-                resp = loss),
+                class = b,
+                coef = Intercept,
+                resp = loss,
+                nlpar = s1),
           
           prior(lognormal(0, 1),
                 class = Intercept,
                 dpar = sigma,
                 resp = loss)
         ),
-      chains = 1,
-      iter = 1000,
-      warmup = 250,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
       control = list(adapt_delta = 0.999,
                      max_treedepth = 10)
   )
@@ -230,6 +235,9 @@ sev_output =
       apply(2, function(x) quantile(x, 0.975))
   )
 
+# This is just a high-level check for reasonableness and does not reflect
+# the "true" posterior of ground up lambdas predicted by the model
+
 sev_output_mean =
   sev_output %>%
   group_by(
@@ -247,13 +255,17 @@ sev_output_mean =
     region
   ) %>%
   summarise(
-    Intercept_loss = mean(mu_pred),
-    Intercept_sigma_loss = mean(sigma_pred)
+    mu_pred = mean(mu_pred),
+    sigma_pred = mean(sigma_pred)
   ) %>%
   ungroup()
 
 freq_output =
   freq_data_net %>%
+  left_join(
+    sev_output_mean,
+    by = "region"
+  ) %>%
   mutate(
     lambda_pred = 
       posterior_linpred(
@@ -267,7 +279,9 @@ freq_output =
           mutate(ded = 0),
         resp = "claimcount"
         ) %>%
-      colMeans(),
+      colMeans() %>%
+      exp() /
+      (1 - plnorm(ded, mu_pred, sigma_pred)),
     
     lambda_pred_q025 = 
       posterior_linpred(
@@ -281,7 +295,9 @@ freq_output =
           mutate(ded = 0),
         resp = "claimcount"
       ) %>%
-      apply(2, function(x) quantile(x, 0.025)),
+      exp() %>%
+      apply(2, function(x) quantile(x, 0.025)) /
+      (1 - plnorm(ded, mu_pred, sigma_pred)),
     
     lambda_pred_q975 = 
       posterior_linpred(
@@ -295,7 +311,9 @@ freq_output =
           mutate(ded = 0),
         resp = "claimcount"
       ) %>%
-      apply(2, function(x) quantile(x, 0.975))
+      exp() %>%
+      apply(2, function(x) quantile(x, 0.975)) /
+      (1 - plnorm(ded, mu_pred, sigma_pred))
   )
 
 model_compare =
