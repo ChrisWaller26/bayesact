@@ -120,7 +120,7 @@ stanvars_lik =
   "
 
 fit_freq = 
-  bf(claimcount | subset(freq) ~ f1 ,
+  bf(claimcount | subset(freq) ~ f1,
      f1 ~ 1 + region,
      nl = TRUE) + 
   poisson()
