@@ -39,3 +39,5 @@ vignettes/*.pdf
 .Renviron
 Model/brms generated stancode from Frequency Severity BRMS with modification.stan
 *.rds
+*.RData
+*.RData
