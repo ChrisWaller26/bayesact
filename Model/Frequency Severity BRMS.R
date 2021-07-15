@@ -22,12 +22,12 @@ set.seed(123456)
 
 regions = c("EMEA", "USC")
 
-freq_n = 50e3
-freq_lambda_vec = c(EMEA = 0.2, USC = 0.3)
+freq_n = 5e3
+freq_lambda_vec = c(EMEA = 2, USC = 3)
 
 # Defines a non-linear function for lambda to test model still works
 
-lambda_fun = function(expo) 10
+lambda_fun = function(expo) 1
 
 freq_data =
   data.frame(
@@ -36,7 +36,7 @@ freq_data =
     sev = FALSE,
     expo = runif(freq_n, 1, 100),
     ded = runif(freq_n, 1e3, 10e3),
-    lim = runif(freq_n, 25e3, 50e3),
+    lim = runif(freq_n, 25e3, 100e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
   mutate(
@@ -46,6 +46,8 @@ freq_data =
   )
 
 #### Simulate severity Data ####
+
+mu_fun = function(expo) 1
 
 sev_mu_vec = c(EMEA = 8, USC = 9)
 sev_sigma_vec = c(EMEA = 1, USC = 1.5)
@@ -57,7 +59,9 @@ sev_data =
     lim = rep(freq_data$lim,
               freq_data$claimcount_fgu),
     region = rep(freq_data$region,
-              freq_data$claimcount_fgu)
+                 freq_data$claimcount_fgu),
+    expo = rep(freq_data$expo,
+                 freq_data$claimcount_fgu)
   ) %>%
   mutate(
     loss_uncapped =
@@ -67,7 +71,8 @@ sev_data =
           function(i){
             
             rlnorm(freq_data$claimcount_fgu[i], 
-                   sev_mu_vec[freq_data$region[i]], 
+                   sev_mu_vec[freq_data$region[i]] *
+                     mu_fun(freq_data$expo[i]), 
                    sev_sigma_vec[freq_data$region[i]])
             
           }
@@ -104,6 +109,7 @@ freq_data_net =
     by = "pol_id"
   ) %>%
   mutate(
+    lim_exceed = 0,
     claimcount = coalesce(claimcount, 0L)
   )
 
@@ -119,10 +125,11 @@ fit_freq =
   bf(claimcount | subset(freq) ~ f1,
      f1 ~ 1 + region,
      nl = TRUE) + 
-  poisson()
+  poisson(link = "log")
 
 fit_sev = 
-  bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ s1,
+  bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ 
+       s1,
      s1 ~ 1 + region,
      sigma ~ 1 + region,
      nl = TRUE
@@ -135,6 +142,25 @@ stanvars = c(
   stanvar(
     x = freq_data_net$ded,
     name = "ded"
+  ),
+  
+  stanvar(
+    scode = 
+      "
+      target += 
+        (poisson_lpmf(Y_claimcount | 
+                    mu_claimcount + 
+                    log(1 - lognormal_cdf(
+                        ded, 
+                        X_claimcount_f1[, 1:K_loss_s1] * b_loss_s1, 
+                        exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_sigma_loss] * b_sigma_loss)
+                        )
+                        )
+                        ) -
+        poisson_lpmf(Y_claimcount | mu_claimcount));
+    ",
+    block = "likelihood",
+    position = "end"
   )
 )
 
@@ -144,7 +170,7 @@ priors = c(prior(normal(0, 1),
                  resp = claimcount,
                  nlpar = f1),
            
-           prior(normal(8, 2),
+           prior(normal(8, 1),
                  class = b,
                  coef = Intercept,
                  resp = loss,
@@ -156,41 +182,12 @@ priors = c(prior(normal(0, 1),
                  resp = loss)
            )
 
-mv_model_code_raw =
-  make_stancode(
-    mv_model_formula,
-    data = full_data,
-    stanvars = stanvars,
-    prior = priors
-  )
-  
-stanvars_adj =
-  "mu_claimcount + 
-      log(1 - lognormal_cdf(
-              ded, 
-              X_claimcount_f1[, 1:K_loss_s1] * b_loss_s1, 
-              exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_sigma_loss] * b_sigma_loss)
-              )
-              )
-  "
-
-mv_model_code = 
-  str_replace(mv_model_code_raw, 
-              "\\| mu_claimcount", 
-              paste("\\|", stanvars_adj))
-
-mv_model_data =
-  make_standata(
-    mv_model_formula,
-    data = full_data,
-    stanvars = stanvars,
-    prior = priors
-  )
-
 mv_model_fit =
-  stan(
-    model_code = mv_model_code,
-    data = mv_model_data,
+  brm(
+    mv_model_formula,
+    data = full_data,
+    prior = priors,
+    stanvars = stanvars,
     chains = 1,
     iter = 1000,
     warmup = 250,
