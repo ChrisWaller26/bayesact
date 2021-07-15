@@ -38,12 +38,17 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+
 # Misc.
 *.pdf
 *.xlsx
 *.xls
 *.xlsm
-*.RData
 *.docx
 *.doc
 *.log
+
+Model/brms generated stancode from Frequency Severity BRMS with modification.stan
+*.rds
+*.RData
+
