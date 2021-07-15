@@ -41,3 +41,4 @@ Model/brms generated stancode from Frequency Severity BRMS with modification.sta
 *.rds
 *.RData
 *.RData
+Model/modified stan code.stan
