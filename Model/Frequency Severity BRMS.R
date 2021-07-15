@@ -147,17 +147,17 @@ stanvars = c(
   stanvar(
     scode = 
       "
-      target += 
-        (poisson_lpmf(Y_claimcount | 
+      target += poisson_log_lpmf(Y_claimcount | 
                     mu_claimcount + 
                     log(1 - lognormal_cdf(
                         ded, 
                         X_claimcount_f1[, 1:K_loss_s1] * b_loss_s1, 
                         exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_sigma_loss] * b_sigma_loss)
                         )
-                        )
-                        ) -
-        poisson_lpmf(Y_claimcount | mu_claimcount));
+                        )) -
+                        
+                poisson_log_lpmf(Y_claimcount | mu_claimcount);
+
     ",
     block = "likelihood",
     position = "end"
