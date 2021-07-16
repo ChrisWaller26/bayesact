@@ -947,6 +947,13 @@
       "Repository": "CRAN",
       "Hash": "52772d81aa532a6331fd535701882c12"
     },
+    "rstanarm": {
+      "Package": "rstanarm",
+      "Version": "2.21.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "4d06068607c7df5c5621f0e4c30a0d7e"
+    },
     "rstantools": {
       "Package": "rstantools",
       "Version": "2.1.1",
@@ -1037,6 +1044,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "0759e6b6c0957edb1311028a49a35e76"
+    },
+    "survival": {
+      "Package": "survival",
+      "Version": "3.2-10",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "6b7453cd9bb32b12577c78d54eeea56a"
     },
     "sys": {
       "Package": "sys",
