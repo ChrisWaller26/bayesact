@@ -182,6 +182,15 @@ priors = c(prior(normal(0, 1),
                  resp = loss)
            )
 
+mv_model_code =
+  make_stancode(
+    mv_model_formula,
+    data = full_data,
+    prior = priors,
+    stanvars = stanvars
+  )
+  
+
 mv_model_fit =
   brm(
     mv_model_formula,
