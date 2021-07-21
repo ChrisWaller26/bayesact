@@ -120,6 +120,7 @@ full_data =
             sev_data)
 
 #### Multivariate Model ####
+
 fit_freq = 
   bf(claimcount | subset(freq) ~ f1,
      f1 ~ 1 + region,
@@ -128,38 +129,75 @@ fit_freq =
 
 fit_sev = 
   bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ 
-       s1,
+       log(s1) + 7,
      s1 ~ 1 + region,
      sigma ~ 1 + region,
      nl = TRUE
   ) + 
   lognormal()
 
-mv_model_formula = fit_freq + fit_sev + set_rescor(FALSE)
+
+replace_freq_block <- function(stan_code, 
+                               sev_dist = "lnorm", 
+                               resp_freq = "claimcount",
+                               resp_sev = "loss",
+                               freq_par = c("f1"),
+                               sev_par = c("s1")) {
+  
+  cdf_fun =
+    case_when(
+      sev_dist == "lnorm"  ~ "lognormal_cdf",
+      sev_dist == "gamma"  ~ "gamma_cdf",
+      sev_dist == "norm"   ~ "normal_cdf",
+      sev_dist == "pareto" ~ "pareto_cdf"
+    )
+  
+  sev_par_name =
+    case_when(
+      sev_dist == "lnorm"  ~ c("mu", "sigma"),
+      sev_dist == "gamma"  ~ c("alpha", "beta"),
+      sev_dist == "norm"   ~ c("mu", "sigma"),
+      sev_dist == "pareto" ~ c("y_min", "alpha")
+    )
+    
+  freq_par_name = paste0("mu_", resp_freq) 
+  
+  raw_code <- 
+    stan_code %>% 
+    as.character()
+  
+  ### Modify the mu_claimcount line
+  
+  new_code <- 
+    gsub(
+      str_glue('\\| {freq_par_name}'),
+      str_glue(
+      '\\| {freq_par_name} + 
+        log(1 - {cdf_fun}(
+            ded, 
+            
+            X_{resp_freq}_{freq_par}[, 1:K_{resp_sev}_{sev_par}] * 
+            b_{resp_sev}_{sev_par}, 
+            
+            exp(Intercept_{sev_par_name[2]}_{resp_sev} + 
+            X_{resp_freq}_f1[, 2:K_{sev_par_name[2]}_{resp_sev}] * 
+            b_{sev_par_name[2]}_{resp_sev}
+            )
+      )
+      )'
+      ),
+      raw_code
+    )
+  
+  return(new_code)
+}
+
+mv_model_formula = fit_sev + fit_freq + set_rescor(FALSE)
 
 stanvars = c(
   stanvar(
     x = freq_data_net$ded,
     name = "ded"
-  ),
-  
-  stanvar(
-    scode = 
-      "
-      target += poisson_log_lpmf(Y_claimcount | 
-                    mu_claimcount + 
-                    log(1 - lognormal_cdf(
-                        ded, 
-                        X_claimcount_f1[, 1:K_loss_s1] * b_loss_s1, 
-                        exp(Intercept_sigma_loss + X_claimcount_f1[, 2:K_sigma_loss] * b_sigma_loss)
-                        )
-                        )) -
-                        
-                poisson_log_lpmf(Y_claimcount | mu_claimcount);
-
-    ",
-    block = "likelihood",
-    position = "end"
   )
 )
 
@@ -181,12 +219,27 @@ priors = c(prior(normal(0, 1),
                  resp = loss)
            )
 
-mv_model_fit =
-  brm(
+mv_model_code =
+  make_stancode(
     mv_model_formula,
     data = full_data,
     prior = priors,
-    stanvars = stanvars,
+    stanvars = stanvars
+  ) %>%
+  replace_freq_block()
+
+mv_model_data =
+  make_standata(
+    mv_model_formula,
+    data = full_data,
+    prior = priors,
+    stanvars = stanvars
+  )
+
+mv_model_fit_stan =
+  stan(
+    model_code = mv_model_code,
+    data = mv_model_data,
     chains = 1,
     iter = 1000,
     warmup = 250,
@@ -194,6 +247,19 @@ mv_model_fit =
       list(adapt_delta = 0.999,
            max_treedepth = 15)
     )
+
+## Convert back to BRMS fit object
+
+mv_model_fit <- 
+  brm( formula = mv_model_formula,
+       data = full_data, 
+       prior = priors, 
+       empty = TRUE
+       )
+
+mv_model_fit$fit <- mv_model_fit_stan
+
+mv_model_fit <- rename_pars(mv_model_fit )
 
 #### Results ####
 
