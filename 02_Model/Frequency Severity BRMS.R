@@ -27,7 +27,7 @@ freq_lambda_vec = c(EMEA = 2, USC = 3)
 
 # Defines a non-linear function for lambda to test model still works
 
-lambda_fun = function(expo) 1
+lambda_fun = function(expo) exp(-0.5 + 0.01 * expo)
 
 freq_data =
   data.frame(
@@ -35,7 +35,7 @@ freq_data =
     freq = TRUE,
     sev = FALSE,
     expo = runif(freq_n, 1, 100),
-    ded = runif(freq_n, 1e3, 10e3),
+    ded = runif(freq_n, 0, 1000),
     lim = runif(freq_n, 25e3, 100e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
@@ -47,7 +47,7 @@ freq_data =
 
 #### Simulate severity Data ####
 
-mu_fun = function(expo) 1
+mu_fun = function(expo) 1 * expo ^ 0.05
 
 sev_mu_vec = c(EMEA = 8, USC = 9)
 sev_sigma_vec = c(EMEA = 1, USC = 1.5)
@@ -122,15 +122,17 @@ full_data =
 #### Multivariate Model ####
 
 fit_freq = 
-  bf(claimcount | subset(freq) ~ f1,
+  bf(claimcount | subset(freq) ~ f1 + expo * f2,
      f1 ~ 1 + region,
+     f2 ~ 1,
      nl = TRUE) + 
   poisson(link = "log")
 
 fit_sev = 
   bf(loss | subset(sev) + trunc(lb = ded) + cens(lim_exceed) ~ 
-       log(s1) + 7,
+       s1 * expo ^ (s2 - dog),
      s1 ~ 1 + region,
+     s2 ~ 1,
      sigma ~ 1 + region,
      nl = TRUE
   ) + 
@@ -207,11 +209,23 @@ priors = c(prior(normal(0, 1),
                  resp = claimcount,
                  nlpar = f1),
            
+           prior(normal(0, 1),
+                 class = b,
+                 coef = Intercept,
+                 resp = claimcount,
+                 nlpar = f2),
+           
            prior(normal(8, 1),
                  class = b,
                  coef = Intercept,
                  resp = loss,
                  nlpar = s1),
+           
+           prior(normal(8, 1),
+                 class = b,
+                 coef = Intercept,
+                 resp = loss,
+                 nlpar = s2),
            
            prior(lognormal(0, 1),
                  class = Intercept,
