@@ -86,7 +86,7 @@ stan_data <- brms::make_standata(
 stan_code <- brms::make_stancode(
   formula = mvfit_formula,
   data = full_data,
-  prior = c(prior(normal(-1, 0.1), class = 'b', resp = 'claimcount', coef = 'Intercept', nlpar = 'f1'),
+  prior = c(prior(normal(-1, 0.5), class = 'b', resp = 'claimcount', coef = 'Intercept', nlpar = 'f1'),
             prior(normal(5, 2), class = 'b', resp = 'loss', nlpar = 's1')
   )
 )
