@@ -27,7 +27,7 @@ freq_n = 5e3
 # Defines a non-linear function for lambda to test model still works
 
 lambda_fun = function(expo, region){
-  c(EMEA = 1, USC = 2)[region]
+  c(EMEA = 1, USC = 2)[region] + 0.01 * expo 
 } 
 
 freq_data =
@@ -36,7 +36,7 @@ freq_data =
     freq = TRUE,
     sev = FALSE,
     expo = runif(freq_n, 1, 100),
-    ded = runif(freq_n, 0, 1000),
+    ded = runif(freq_n, 0, 1e3),
     lim = runif(freq_n, 25e3, 100e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
@@ -127,14 +127,15 @@ freq_link = c(mu = "log")
 sev_link = c(mu = "identity", sigma = "log")
 
 fit_freq = 
-  bf(claimcount ~ f1,
+  bf(claimcount ~ f1 + f2 * expo,
      f1 ~ 1 + region,
+     f2 ~ 1,
      nl = TRUE) + 
   poisson(link = freq_link[["mu"]])
 
 fit_sev = 
   bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-       s1 * expo / expo,
+       s1,
      s1 ~ 1 + region,
      sigma ~ 1 + region,
      nl = TRUE
@@ -159,13 +160,6 @@ stanvars = c(
     x = full_data$freq,
     name = "freq"
   )
-  # ,
-  # stanvar(
-  #   scode = 
-  #     "b_sigma_loss_Intercept = b_sigma_loss_Intercept + dot_product(means_X_sigma_loss, b_sigma_loss);",
-  #   block = "genquant",
-  #   position = "end"
-  # )
 )
 
 priors = c(prior(normal(0, 1),
@@ -174,11 +168,11 @@ priors = c(prior(normal(0, 1),
                  resp = claimcount,
                  nlpar = f1),
            
-           # prior(normal(0, 1),
-           #       class = b,
-           #       coef = Intercept,
-           #       resp = claimcount,
-           #       nlpar = f2),
+           prior(normal(0.015, 0.01),
+                 class = b,
+                 coef = Intercept,
+                 resp = claimcount,
+                 nlpar = f2),
            
            prior(normal(8, 1),
                  class = b,
@@ -261,7 +255,7 @@ sev_feature_stan = grep(str_glue("C_{sev_resp}_"),
                       names(mv_model_data), 
                       value = TRUE,
                       fixed = TRUE)
-freq_feature_stan = grep("C_{freq_resp}_", 
+freq_feature_stan = grep(str_glue("C_{freq_resp}_"), 
                       names(mv_model_data), 
                       value = TRUE, 
                       fixed = TRUE)
