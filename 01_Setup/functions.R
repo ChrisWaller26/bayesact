@@ -1,41 +1,36 @@
+
 freq_formula = 
-  bf(claimcount ~ f1,
-     f1 ~ 1 + region,
-     nl = TRUE)
+  bf(claimcount ~ 1 + region)
+
 sev_formula = 
   bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-       s1,
-     s1 ~ 1 + region,
-     sigma ~ 1 + region,
-     nl = TRUE
+       1 + region,
+     sigma ~ 1 + region
   )
 
-freq_family = poisson
-sev_family = lognormal
+freq_family = poisson(link = "log")
+sev_family = lognormal(link = "identity", link_sigma = "log")
 
 freq_data = freq_data_net
 sev_data = sev_data
 
-freq_link = c(mu = "log")
-sev_link = c(mu = "identity", sigma = "log")
-
 priors = c(prior(normal(0, 1),
+                 class = Intercept,
+                 resp = claimcount),
+           
+           prior(normal(0, 1),
                  class = b,
-                 coef = Intercept,
-                 resp = claimcount,
-                 nlpar = f1),
+                 resp = claimcount),
            
            prior(normal(8, 1),
-                 class = b,
-                 coef = Intercept,
-                 resp = loss,
-                 nlpar = s1),
-
+                 class = Intercept,
+                 resp = loss),
+           
            prior(lognormal(0, 1),
                  class = Intercept,
                  dpar = sigma,
                  resp = loss)
-           )
+)
 
 ded_name = "ded"
 
@@ -44,12 +39,10 @@ brms_freq_sev =
   function(
     freq_formula,
     sev_formula,
-    freq_family = poisson,
-    sev_family = lognormal,
+    freq_family,
+    sev_family,
     freq_data,
     sev_data,
-    freq_link = c("log"),
-    sev_link = c("identity", "log"),
     priors,
     ded_name = "ded",
     ...
@@ -64,18 +57,168 @@ brms_freq_sev =
     library(rstanarm)
     library(readr)
     
+    #### Error Checks ####
+    
+    if(is.null(freq_formula)){
+      
+      stop("Frequency Formula Required")
+      
+    }
+    
+    if(is.null(sev_formula)){
+      
+      stop("Severity Formula Required")
+      
+    }
+    
+    if(is.null(freq_family)){
+      
+      stop("Frequency Family Required")
+     
+    }
+   
+    if(is.null(sev_family)){
+      
+      stop("Severity Family Required")
+      
+    }
+      
+    if(is.null(freq_data)){
+      
+      stop("Frequency Data Required")
+     
+    }
+         
+    if(is.null(sev_data)){
+      
+      stop("Severity Data Required")
+     
+    }
+   
+    if(is.null(priors)){
+      
+      stop("Priors Required")
+     
+    }
+   
+    if(is.null(ded_name)){
+      
+      stop("Name of Deductible Column Required")
+     
+    }
+    
     #### Multivariate Model ####
+    
+    sev_dist = sev_family$family
+    freq_dist = freq_family$family
+    
+    sev_resp = sev_formula$resp
+    freq_resp = freq_formula$resp
+    
+    ## Convert Linear Model to Non-Linear 
+    
+    if(!attr(freq_formula$formula, "nl")){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            paste0(as.character(freq_formula$formula[2]), " ~ f1")
+          ),
+          as.formula(
+            paste0("f1 ~ ", as.character(freq_formula$formula[3]))
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+      priors = 
+        priors %>%
+        mutate(
+          nlpar = 
+            case_when(
+              (resp == freq_resp) & (dpar == "") ~ "f1",
+              TRUE ~ nlpar
+              ),
+          coef =
+            case_when(
+              (resp == freq_resp) & 
+                (dpar == "") & 
+                class == "Intercept" ~ "Intercept",
+              TRUE ~ coef
+            ),
+          class = 
+            case_when(
+              (resp == freq_resp) & (dpar == "") ~ "b",
+              TRUE ~ class
+            )
+        )
+      
+    }
+    
+    if(!attr(sev_formula$formula, "nl")){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            paste0(as.character(sev_formula$formula[2]), " ~ s1")
+          ),
+          as.formula(
+            paste0("s1 ~ ", as.character(sev_formula$formula[3]))
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+      priors = 
+        priors %>%
+        mutate(
+          nlpar = 
+            case_when(
+              (resp == sev_resp) & (dpar == "") ~ "s1",
+              TRUE ~ nlpar
+            ),
+          coef =
+            case_when(
+              (resp == sev_resp) & 
+                (dpar == "") & 
+                class == "Intercept" ~ "Intercept",
+              TRUE ~ coef
+            ),
+          class = 
+            case_when(
+              (resp == sev_resp) & (dpar == "") ~ "b",
+              TRUE ~ class
+            )
+        )
+      
+    }
+    
+    
+    freq_link = 
+      freq_family[
+        grep("link", 
+             setdiff(names(freq_family), c("linkinv", "linkfun")),
+             value = TRUE
+             )
+      ] %>%
+      unlist()
+      
+    sev_link = 
+      sev_family[
+        grep("link", 
+             setdiff(names(sev_family), c("linkinv", "linkfun")),
+             value = TRUE
+        )
+      ] %>%
+      unlist()
     
     fit_freq = 
       freq_formula + 
-      freq_family(link = freq_link[[1]])
+      freq_family
     
     fit_sev = 
       sev_formula + 
-      sev_family(
-        link = sev_link[[1]],
-        link_sigma = sev_link[[2]]
-      )
+      sev_family
     
     mv_model_formula = fit_sev + fit_freq + set_rescor(FALSE)
     
@@ -144,21 +287,9 @@ brms_freq_sev =
     
     ## Extract Info from Formula Functions
     
-    sev_dist = fit_sev$family$family
-    freq_dist = fit_freq$family$family
-    
-    sev_resp = fit_sev$resp
-    freq_resp = fit_freq$resp
-    
-    sev_arg =
-      case_when(
-        sev_dist == "lognormal" ~ c("mu", "sigma"),
-        sev_dist == "gamma"     ~ c("alpha", "beta"),
-        sev_dist == "normal"    ~ c("mu", "sigma"),
-        sev_dist == "pareto"    ~ c("y_min", "alpha")
-      )
-    freq_arg = c("mu")
-    
+    sev_arg = fit_sev$family$dpars
+    freq_arg = fit_freq$family$dpars
+      
     sev_par = setdiff(names(fit_sev$pforms), sev_arg)
     freq_par = setdiff(names(fit_freq$pforms), freq_arg)
     
@@ -175,8 +306,8 @@ brms_freq_sev =
         freq_link == "logit"    ~ "inv_logit"
       )
     
-    sev_formula = as.character(fit_sev$formula[3])
-    freq_formula = as.character(fit_freq$formula[3])
+    sev_formula_r = as.character(fit_sev$formula[3])
+    freq_formula_r = as.character(fit_freq$formula[3])
     
     sev_feature_stan = grep(str_glue("C_{sev_resp}_"), 
                             names(mv_model_data), 
@@ -229,7 +360,7 @@ brms_freq_sev =
       paste0(
         sev_inv_link[1],
         "(",
-        sev_formula,
+        sev_formula_r,
         ")"
       )
     
@@ -253,7 +384,7 @@ brms_freq_sev =
       paste0(
         freq_inv_link[1],
         "(",
-        freq_formula,
+        freq_formula_r,
         ")"
       )
     

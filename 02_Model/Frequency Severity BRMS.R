@@ -14,6 +14,8 @@ library(renv)
 options(stringsAsFactors = FALSE,
         mc.cores = parallel::detectCores())
 
+source("01_Setup/functions.R")
+
 #### Simulate Frequency Data ####
 
 #' Assuming one rating factor, region, with one group.
@@ -114,38 +116,31 @@ mv_model_fit =
   brms_freq_sev(
     
     freq_formula = 
-      bf(claimcount ~ f1,
-         f1 ~ 1 + region,
-         nl = TRUE),
+      bf(claimcount ~ 1 + region),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           s1,
-         s1 ~ 1 + region,
-         sigma ~ 1 + region,
-         nl = TRUE
+           1 + region,
+         sigma ~ 1 + region
       ),
     
-    freq_family = poisson,
-    sev_family = lognormal,
+    freq_family = poisson(),
+    sev_family = lognormal(),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
-    
-    freq_link = c("log"),
-    sev_link = c("identity", "log"),
-    
-    priors = c(prior(normal(0, 1),
-                     class = b,
-                     coef = Intercept,
-                     resp = claimcount,
-                     nlpar = f1),
 
-               prior(normal(8, 1),
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+               
+               prior(normal(0, 1),
                      class = b,
-                     coef = Intercept,
-                     resp = loss,
-                     nlpar = s1),
+                     resp = claimcount),
+               
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
                
                prior(lognormal(0, 1),
                      class = Intercept,
