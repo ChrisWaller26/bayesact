@@ -1,4 +1,3 @@
-
   for(n in 1:N_!!{sev_resp}!!){
     
     mu_!!{sev_resp}!![n] = !!{sev_formula_stan}!!;
@@ -22,13 +21,13 @@
     
       if (cens_!!{sev_resp}!![n] == 0) {
         target += (!!{sev_dist}!!_lpdf(Y_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n]) -
-        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * sev[n];
+        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * (1 - freq[n]);
       } else if (cens_!!{sev_resp}!![n] == 1) {
         target += (!!{sev_dist}!!_lccdf(Y_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n]) -
-        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * sev[n];
+        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * (1 - freq[n]);
       } else if (cens_!!{sev_resp}!![n] == -1) {
         target += (!!{sev_dist}!!_lcdf(Y_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n]) -
-        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * sev[n];
+        !!{sev_dist}!!_lccdf(lb_!!{sev_resp}!![n] | mu_!!{sev_resp}!![n], !!{sev_arg[2]}!!_!!{sev_resp}!![n])) * (1 - freq[n]);
       }
     }
     
@@ -42,5 +41,3 @@
   }
   
   }
-  
-  
