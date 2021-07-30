@@ -1,40 +1,4 @@
 
-freq_formula = 
-  bf(claimcount ~ 1 + region)
-
-sev_formula = 
-  bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-       1 + region,
-     sigma ~ 1 + region
-  )
-
-freq_family = poisson(link = "log")
-sev_family = lognormal(link = "identity", link_sigma = "log")
-
-freq_data = freq_data_net
-sev_data = sev_data
-
-priors = c(prior(normal(0, 1),
-                 class = Intercept,
-                 resp = claimcount),
-           
-           prior(normal(0, 1),
-                 class = b,
-                 resp = claimcount),
-           
-           prior(normal(8, 1),
-                 class = Intercept,
-                 resp = loss),
-           
-           prior(lognormal(0, 1),
-                 class = Intercept,
-                 dpar = sigma,
-                 resp = loss)
-)
-
-ded_name = "ded"
-
-
 brms_freq_sev =
   function(
     freq_formula,

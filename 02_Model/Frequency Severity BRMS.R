@@ -120,7 +120,7 @@ mv_model_fit =
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           1 + region,
+           1 + region + s(expo),
          sigma ~ 1 + region
       ),
     
