@@ -120,12 +120,13 @@ mv_model_fit =
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           1 + region + s(expo),
+           1 + region,
          sigma ~ 1 + region
       ),
     
-    freq_family = poisson(),
-    sev_family = lognormal(),
+    freq_family = poisson(link = "log"),
+    sev_family = lognormal(link = "identity",
+                           link_sigma = "log"),
     
     freq_data = freq_data_net,
     sev_data = sev_data,

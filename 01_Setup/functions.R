@@ -176,6 +176,232 @@ brms_freq_sev =
       ] %>%
       unlist()
     
+    if(length(freq_link) != 1){
+      
+      stop("Function only works for 1-parameter frequency families, e.g. poisson")
+      
+    }
+    
+    if(length(sev_link) != 2){
+      
+      stop("Function only works for 2-parameter severity families, e.g. lognormal, normal")
+      
+    }
+    
+    
+    
+    #### Convert to censored if uncensored
+    
+    ## Frequency
+    
+    if(!grepl("|", freq_formula$formula[2], fixed = TRUE)){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            str_c(
+              as.character(freq_formula$formula[2]),
+              " | cens(no_censoring) + trunc(lb = 0, ub = 999999999L)~ ", 
+              as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    if(!grepl("cens", freq_formula$formula[2])){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "|",
+                " | cens(no_censoring) + ",
+                as.character(freq_formula$formula[2]),
+                fixed = TRUE
+              ),
+              " ~ ", 
+              as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    ## Severity
+    
+    if(!grepl("|", sev_formula$formula[2], fixed = TRUE)){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            str_c(
+              as.character(sev_formula$formula[2]),
+              " | cens(no_censoring) + trunc(lb = 0, ub = 1e99) ~ ", 
+              as.character(sev_formula$formula[3])
+            )
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    if(!grepl("cens", sev_formula$formula[2])){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "|",
+                " | cens(no_censoring) + ",
+                as.character(sev_formula$formula[2]),
+                fixed = TRUE
+              ),
+              " ~ ", 
+              as.character(sev_formula$formula[3])
+            )
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    #### Convert unbounded model to truncated
+    
+    ## Frequency
+    
+    if(grepl("lb =|lb=|trunc", freq_formula$formula[2]) &
+       !grepl("ub =|ub=", freq_formula$formula[2])){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "trunc(",
+                "trunc(ub = 999999999L, ", 
+                as.character(freq_formula$formula[2]),
+                fixed = TRUE 
+              ),
+              " ~ ", 
+              as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+    }else if(!grepl("lb =|lb=", freq_formula$formula[2]) &
+             grepl("ub =|ub=", freq_formula$formula[2])){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "trunc(",
+                "trunc(lb = 0L, ", 
+                as.character(freq_formula$formula[2]),
+                fixed = TRUE
+              ),
+              " ~ ", 
+              as.character(freq_formula$formula[3])
+            )
+            
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+    }else if(!grepl("trunc", freq_formula$formula[2])){
+      
+      freq_formula =
+        bf(
+          as.formula(
+            str_c(
+              as.character(freq_formula$formula[2]),
+            "trunc(lb = 0L, ub = 999999999L) ~ ",
+            as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    ## Severity
+    
+    if(grepl("lb =|lb=|trunc", sev_formula$formula[2]) &
+       !grepl("ub =|ub=", sev_formula$formula[2])){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "trunc(",
+                "trunc(ub = 1e99, ", 
+                as.character(sev_formula$formula[2]),
+                fixed = TRUE
+              ),
+              " ~ ",
+              as.character(sev_formula$formula[3])
+            )
+            
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+    }else if(!grepl("lb =|lb=", sev_formula$formula[2]) &
+             grepl("ub =|ub=", sev_formula$formula[2])){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            str_c(
+              gsub(
+                "trunc(",
+                "trunc(lb = 0, ", 
+                as.character(sev_formula$formula[2]),
+                fixed = TRUE 
+                ),
+              " ~ ",
+              as.character(sev_formula$formula[3])
+            )
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+    }else if(!grepl("trunc", sev_formula$formula[2])){
+      
+      sev_formula =
+        bf(
+          as.formula(
+            str_c(
+              as.character(sev_formula$formula[2]),
+              "trunc(lb = 0, ub = 1e99) ~ ",
+              as.character(sev_formula$formula[3])
+            )
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+      
+    }
+    
+    ## Create multivariate model
+    
     fit_freq = 
       freq_formula + 
       freq_family
@@ -200,6 +426,9 @@ brms_freq_sev =
             freq = 0,
             !!fit_freq$resp := 0 
           )
+      ) %>%
+      mutate(
+        no_censoring = 0
       )
     
     # Replace NAs
@@ -221,6 +450,14 @@ brms_freq_sev =
       stanvar(
         x = full_data$freq,
         name = "freq"
+      ),
+      stanvar(
+        scode = 
+          str_glue(
+          "vector[N_{sev_resp}] sev_target; \n
+           vector[N_{freq_resp}] freq_target;"
+          ),
+        block = "model"
       )
     )
     
@@ -241,7 +478,7 @@ brms_freq_sev =
         prior = priors,
         stanvars = stanvars
       )
-    
+
     mv_model_fit <- 
       brm( formula = mv_model_formula,
            data = full_data, 
