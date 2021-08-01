@@ -1,0 +1,211 @@
+#### Load Packages ####
+
+library(brms)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(rstan)
+library(rstanarm)
+library(readr)
+
+library(renv)
+
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
+
+source("01_Setup/functions.R")
+
+#### Simulate Frequency Data ####
+
+#' Assuming one rating factor, region, with one group.
+#' This is just a placeholder until the next stage where we adapt the model
+#' to work with multiple rating factors.
+
+set.seed(123456)
+
+regions = c("EMEA", "USC")
+
+freq_n = 5e3
+
+# Defines a non-linear function for lambda to test model still works
+
+lambda_fun = function(expo, region){
+  exp(c(EMEA = 0.5, USC = 1)[region]) 
+} 
+
+freq_data =
+  data.frame(
+    pol_id =  seq(freq_n),
+    expo = runif(freq_n, 1, 100),
+    ded = runif(freq_n, 0, 1e3),
+    lim = runif(freq_n, 25e3, 100e3),
+    region = sample(regions, freq_n, replace = T)
+  ) %>%
+  mutate(
+    freq_lambda = lambda_fun(expo, region),
+    claimcount_fgu = rpois(freq_n, freq_lambda)
+    )
+
+#### Simulate severity Data ####
+
+mu_fun = function(expo, region){
+  c(EMEA = 7, USC = 8)[region]
+}
+
+sev_sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+sev_data =
+  data.frame(
+    ded = rep(freq_data$ded,
+              freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
+    region = rep(freq_data$region,
+                 freq_data$claimcount_fgu),
+    expo = rep(freq_data$expo,
+               freq_data$claimcount_fgu)
+  ) %>%
+  mutate(
+    loss_uncapped =
+      unlist(
+        lapply(
+          seq(freq_n),
+          function(i){
+            
+            rlnorm(freq_data$claimcount_fgu[i], 
+                   mu_fun(freq_data$expo[i], freq_data$region[i]), 
+                   sev_sigma_vec[freq_data$region[i]])
+            
+          }
+        )
+      )
+  ) %>%
+  mutate(
+    pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
+  ) %>% 
+  filter(
+    loss_uncapped > ded
+  ) %>%
+  mutate(
+    claim_id = row_number(),
+    lim_exceed = as.integer(loss_uncapped >= lim),
+    loss = pmin(loss_uncapped, lim)
+  )
+
+freq_data_net =
+  freq_data %>%
+  left_join(
+    sev_data %>%
+      group_by(
+        pol_id
+      ) %>%
+      summarise(
+        claimcount = n()
+      ) %>%
+      ungroup(),
+    by = "pol_id"
+  ) %>%
+  mutate(
+    claimcount = coalesce(claimcount, 0)
+  )
+
+#### Run Model ####
+
+mv_model_fit =
+  brms_freq_sev(
+    
+    freq_formula = 
+      bf(claimcount ~ 1 + region),
+    
+    sev_formula = 
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
+           1 + region + s(expo),
+         sigma ~ 1 + region
+      ),
+    
+    freq_family = poisson(),
+    sev_family = lognormal(),
+    
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+               
+               prior(normal(0, 1),
+                     class = b,
+                     resp = claimcount),
+               
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
+               
+               prior(lognormal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
+                     resp = loss)
+    ),
+    
+    ded_name = "ded",
+    
+    chains = 1,
+    iter = 1000,
+    warmup = 250,
+    control = 
+      list(adapt_delta = 0.999,
+           max_treedepth = 15)
+  )
+
+#### Results ####
+
+model_post_samples =
+  posterior_samples(
+    mv_model_fit
+  ) %>%
+  transmute(
+    s1_emea = b_loss_s1_Intercept, 
+    s1_usc  = b_loss_s1_Intercept +
+              b_loss_s1_regionUSC,
+    
+    sigma_emea = exp(b_sigma_loss_Intercept), 
+    sigma_usc  = exp(b_sigma_loss_Intercept +
+                      b_sigma_loss_regionUSC),
+    
+    f1_emea = b_claimcount_f1_Intercept, 
+    f1_usc  = b_claimcount_f1_Intercept +
+              b_claimcount_f1_regionUSC
+  )
+
+save(
+  full_data,
+  mv_model_fit,
+  model_post_samples,
+  file = "02_Model/mv_model_fit.RData"
+)
+
+base::load(file = "02_Model/mv_model_fit.RData")
+
+
+model_output =
+  model_post_samples %>%
+  sapply(
+    function(x) c(lower = quantile(x, 0.025),
+                  mean  = mean(x),
+                  upper = quantile(x, 0.975))
+  ) %>%
+  as.data.frame() %>%
+  bind_rows(
+    data.frame(
+      s1_emea = 7, 
+      s1_usc  = 8,
+      
+      sigma_emea = exp(0), 
+      sigma_usc  = exp(0.4),
+      
+      f1_emea = 0.5, 
+      f1_usc  = 1
+    )
+  )
+
