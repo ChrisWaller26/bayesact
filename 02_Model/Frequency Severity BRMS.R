@@ -30,7 +30,7 @@ freq_n = 5e3
 
 # Defines a non-linear function for lambda to test model still works
 
-lambda_fun = function(expo, region){
+freq_mu_fun = function(expo, region){
   exp(c(EMEA = 0.5, USC = 1)[region]) 
 } 
 
@@ -38,22 +38,23 @@ freq_data =
   data.frame(
     pol_id =  seq(freq_n),
     expo = runif(freq_n, 1, 100),
-    ded = runif(freq_n, 0, 1e3),
-    lim = runif(freq_n, 25e3, 100e3),
+    ded = runif(freq_n, 1e3, 5e3),
+    lim = runif(freq_n, 5e3, 50e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
   mutate(
-    freq_lambda = lambda_fun(expo, region),
-    claimcount_fgu = rpois(freq_n, freq_lambda)
-    )
+    freq_mu = freq_mu_fun(expo, region),
+    claimcount_fgu = 
+      rpois(freq_n, freq_mu)
+  )
 
 #### Simulate severity Data ####
 
 mu_fun = function(expo, region){
-  c(EMEA = 7, USC = 8)[region]
+  exp(c(EMEA = 8, USC = 9))[region]
 }
 
-sev_sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+sev_par2_vec = exp(c(EMEA = 0, USC = 0.4))
 
 sev_data =
   data.frame(
@@ -74,8 +75,10 @@ sev_data =
           function(i){
             
             rlnorm(freq_data$claimcount_fgu[i], 
-                   mu_fun(freq_data$expo[i], freq_data$region[i]), 
-                   sev_sigma_vec[freq_data$region[i]])
+                   mu_fun(freq_data$expo[i], 
+                          freq_data$region[i]),
+                   sev_par2_vec[freq_data$region[i]]
+            )
             
           }
         )
@@ -124,13 +127,12 @@ mv_model_fit =
          sigma ~ 1 + region
       ),
     
-    freq_family = poisson(link = "log"),
-    sev_family = lognormal(link = "identity",
-                           link_sigma = "log"),
+    freq_family = poisson(),
+    sev_family = lognormal(),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
-
+    
     priors = c(prior(normal(0, 1),
                      class = Intercept,
                      resp = claimcount),
@@ -146,6 +148,11 @@ mv_model_fit =
                prior(lognormal(0, 1),
                      class = Intercept,
                      dpar = sigma,
+                     resp = loss),
+               
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = sigma,
                      resp = loss)
     ),
     
@@ -154,6 +161,7 @@ mv_model_fit =
     chains = 1,
     iter = 1000,
     warmup = 250,
+    refresh = 5,
     control = 
       list(adapt_delta = 0.999,
            max_treedepth = 15)
@@ -168,15 +176,15 @@ model_post_samples =
   transmute(
     s1_emea = b_loss_s1_Intercept, 
     s1_usc  = b_loss_s1_Intercept +
-              b_loss_s1_regionUSC,
+      b_loss_s1_regionUSC,
     
     sigma_emea = exp(b_sigma_loss_Intercept), 
     sigma_usc  = exp(b_sigma_loss_Intercept +
-                      b_sigma_loss_regionUSC),
+                       b_sigma_loss_regionUSC),
     
     f1_emea = b_claimcount_f1_Intercept, 
     f1_usc  = b_claimcount_f1_Intercept +
-              b_claimcount_f1_regionUSC
+      b_claimcount_f1_regionUSC
   )
 
 save(

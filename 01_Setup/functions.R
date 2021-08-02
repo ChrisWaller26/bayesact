@@ -10,7 +10,7 @@ brms_freq_sev =
     priors,
     ded_name = "ded",
     ...
-    ){
+  ){
     
     library(brms)
     library(dplyr)
@@ -38,43 +38,53 @@ brms_freq_sev =
     if(is.null(freq_family)){
       
       stop("Frequency Family Required")
-     
+      
     }
-   
+    
     if(is.null(sev_family)){
       
       stop("Severity Family Required")
       
     }
-      
+    
     if(is.null(freq_data)){
       
       stop("Frequency Data Required")
-     
+      
     }
-         
+    
     if(is.null(sev_data)){
       
       stop("Severity Data Required")
-     
+      
     }
-   
+    
     if(is.null(priors)){
       
       stop("Priors Required")
-     
+      
     }
-   
+    
     if(is.null(ded_name)){
       
       stop("Name of Deductible Column Required")
-     
+      
     }
     
     #### Multivariate Model ####
     
-    sev_dist = sev_family$family
-    freq_dist = freq_family$family
+    sev_dist = 
+      case_when(
+        sev_family$family == "gaussian" ~ "normal",
+        sev_family$family == "Gamma"    ~ "gamma",
+        TRUE ~ sev_family$family
+      )
+    
+    freq_dist = 
+      case_when(
+        freq_family$family == "negbinomial" ~ "neg_binomial",
+        TRUE ~ freq_family$family
+      )
     
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
@@ -102,7 +112,7 @@ brms_freq_sev =
             case_when(
               (resp == freq_resp) & (dpar == "") ~ "f1",
               TRUE ~ nlpar
-              ),
+            ),
           coef =
             case_when(
               (resp == freq_resp) & 
@@ -163,10 +173,10 @@ brms_freq_sev =
         grep("link", 
              setdiff(names(freq_family), c("linkinv", "linkfun")),
              value = TRUE
-             )
+        )
       ] %>%
       unlist()
-      
+    
     sev_link = 
       sev_family[
         grep("link", 
@@ -175,20 +185,6 @@ brms_freq_sev =
         )
       ] %>%
       unlist()
-    
-    if(length(freq_link) != 1){
-      
-      stop("Function only works for 1-parameter frequency families, e.g. poisson")
-      
-    }
-    
-    if(length(sev_link) != 2){
-      
-      stop("Function only works for 2-parameter severity families, e.g. lognormal, normal")
-      
-    }
-    
-    
     
     #### Convert to censored if uncensored
     
@@ -328,8 +324,8 @@ brms_freq_sev =
           as.formula(
             str_c(
               as.character(freq_formula$formula[2]),
-            "trunc(lb = 0L, ub = 999999999L) ~ ",
-            as.character(freq_formula$formula[3])
+              "trunc(lb = 0L, ub = 999999999L) ~ ",
+              as.character(freq_formula$formula[3])
             )
           ),
           freq_formula$pforms,
@@ -374,7 +370,7 @@ brms_freq_sev =
                 "trunc(lb = 0, ", 
                 as.character(sev_formula$formula[2]),
                 fixed = TRUE 
-                ),
+              ),
               " ~ ",
               as.character(sev_formula$formula[3])
             )
@@ -439,8 +435,8 @@ brms_freq_sev =
         function(x){
           coalesce(x, get(paste0("as.", class(x)))(1))
         }
-        )
-      
+      )
+    
     
     stanvars = c(
       stanvar(
@@ -454,8 +450,8 @@ brms_freq_sev =
       stanvar(
         scode = 
           str_glue(
-          "vector[N_{sev_resp}] sev_target; \n
-           vector[N_{freq_resp}] freq_target;"
+            "    vector[N_{sev_resp}] sev_target; \n
+               vector[N_{freq_resp}] freq_target;"
           ),
         block = "model"
       )
@@ -478,7 +474,7 @@ brms_freq_sev =
         prior = priors,
         stanvars = stanvars
       )
-
+    
     mv_model_fit <- 
       brm( formula = mv_model_formula,
            data = full_data, 
@@ -490,7 +486,33 @@ brms_freq_sev =
     
     sev_arg = fit_sev$family$dpars
     freq_arg = fit_freq$family$dpars
+    
+    if(sev_dist == "gamma"){
       
+      sev_arg = rev(sev_arg)
+      
+    }
+    
+    sev_arg_stan = 
+      str_flatten(
+        str_c(
+          sev_arg, 
+          "_", 
+          sev_resp, 
+          "[n]"
+        ), 
+        ", ")
+    
+    freq_arg_stan = 
+      str_flatten(
+        str_c(
+          freq_arg, 
+          "_", 
+          freq_resp, 
+          "[n]"
+        ), 
+        ", ")
+    
     sev_par = setdiff(names(fit_sev$pforms), sev_arg)
     freq_par = setdiff(names(fit_freq$pforms), freq_arg)
     
@@ -650,7 +672,8 @@ brms_freq_sev =
           mv_model_code,
           str_locate(mv_model_code, "model \\{")[, 1],
           str_locate(mv_model_code, 
-                     str_glue("for \\(n in 1\\:N_{sev_resp}\\)"))[, 1] - 1
+                     str_c(
+                       "for \\(n in 1\\:N_", sev_resp, "\\) \\{\n    // special treatment"))[, 1] - 1
         ),
         
         code_model_template,
