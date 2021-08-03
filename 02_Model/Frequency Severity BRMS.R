@@ -39,7 +39,7 @@ freq_data =
     pol_id =  seq(freq_n),
     expo = runif(freq_n, 1, 100),
     ded = runif(freq_n, 1e3, 5e3),
-    lim = runif(freq_n, 5e3, 50e3),
+    lim = runif(freq_n, 50e3, 100e3),
     region = sample(regions, freq_n, replace = T)
   ) %>%
   mutate(
@@ -110,6 +110,7 @@ freq_data_net =
     by = "pol_id"
   ) %>%
   mutate(
+    include = TRUE,
     claimcount = coalesce(claimcount, 0)
   )
 
@@ -119,7 +120,7 @@ mv_model_fit =
   brms_freq_sev(
     
     freq_formula = 
-      bf(claimcount ~ 1 + region),
+      bf(claimcount | subset(include) ~ 1 + region),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 

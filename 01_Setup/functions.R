@@ -324,7 +324,7 @@ brms_freq_sev =
           as.formula(
             str_c(
               as.character(freq_formula$formula[2]),
-              "trunc(lb = 0L, ub = 999999999L) ~ ",
+              " + trunc(lb = 0L, ub = 999999999L) ~ ",
               as.character(freq_formula$formula[3])
             )
           ),
@@ -386,7 +386,7 @@ brms_freq_sev =
           as.formula(
             str_c(
               as.character(sev_formula$formula[2]),
-              "trunc(lb = 0, ub = 1e99) ~ ",
+              " + trunc(lb = 0, ub = 1e99) ~ ",
               as.character(sev_formula$formula[3])
             )
           ),
