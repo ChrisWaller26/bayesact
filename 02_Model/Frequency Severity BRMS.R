@@ -51,7 +51,7 @@ freq_data =
 #### Simulate severity Data ####
 
 mu_fun = function(expo, region){
-  exp(c(EMEA = 8, USC = 9))[region]
+  c(EMEA = 8, USC = 9)[region]
 }
 
 sev_par2_vec = exp(c(EMEA = 0, USC = 0.4))
@@ -110,7 +110,6 @@ freq_data_net =
     by = "pol_id"
   ) %>%
   mutate(
-    include = TRUE,
     claimcount = coalesce(claimcount, 0)
   )
 
@@ -120,7 +119,7 @@ mv_model_fit =
   brms_freq_sev(
     
     freq_formula = 
-      bf(claimcount | subset(include) ~ 1 + region),
+      bf(claimcount ~ 1 + region),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
@@ -208,8 +207,8 @@ model_output =
   as.data.frame() %>%
   bind_rows(
     data.frame(
-      s1_emea = 7, 
-      s1_usc  = 8,
+      s1_emea = 8, 
+      s1_usc  = 9,
       
       sigma_emea = exp(0), 
       sigma_usc  = exp(0.4),

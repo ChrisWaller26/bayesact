@@ -1,0 +1,1 @@
+This is an R package designed to apply the amazing functionality of the BRMS (*Bayesian Regression Modelling in Stan*) to create flexible functions directly applicable to solving problems in actuarial Bayesian model development.
