@@ -1,0 +1,23 @@
+Package: bayesact
+Type: Package
+Title: The Bayesian Actuarial Package
+Version: 0.0.1
+Author: Chris Waller, Zongwen Tan
+Maintainer: Chris Waller <chriswaller26@gmail.com>, Zongwen Tan <tzw0423@hotmail.com>
+Description: This package has been developed to create simple functions for 
+    running linear and non-linear Bayesian models that utilise the BRMS 
+    package to build actuarial models, e.g. multivariate frequency-severity 
+    models with censoring at the deductible.
+License: None
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Imports:
+    brms,
+    dplyr,
+    purrr,
+    tidyr,
+    stringr,
+    rstan,
+    rstanarm,
+    readr
