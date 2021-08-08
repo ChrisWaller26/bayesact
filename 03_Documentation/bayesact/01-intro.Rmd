@@ -1,0 +1,16 @@
+
+# About the authors
+
+## Chris Waller
+
+Chris is a qualified Senior Technical Pricing Actuary (FIA) based in London, UK, with a Master's in Mathematics from the University of Warwick. He currently works for American International Group (AIG); developing Bayesian statistical models to price commercial lines insurance across a range of different lines of business (e.g. Marine, Property, Energy, Financial Lines, Casualty, Aerospace).
+
+He is currently studying Japanese and is working towards taking the Japanese Language Proficiency Test (Level N2).
+
+**E-Mail**: chriswaller26@gmail.com
+
+**LinkedIn**: https://www.linkedin.com/in/chris-waller-mmath-fia-56a40437/
+
+**GitHub**: https://github.com/ChrisWaller26
+
+## Zongwen Tan
