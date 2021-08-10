@@ -47,6 +47,7 @@ This allows for both linear and non-linear functions of the variates for
 both the frequency and severity model components.
 }
 \examples{
+
 #### Simulate Frequency Data ####
 
 options(stringsAsFactors = FALSE,
