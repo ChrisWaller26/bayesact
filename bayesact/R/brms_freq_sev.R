@@ -305,6 +305,38 @@ brms_freq_sev =
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
 
+    ## Add additional parameter terms, if missing
+
+    if(length(sev_family$dpars) > 1){
+
+      for(i in 2:length(sev_family$dpars)){
+
+        if(is.null(sev_formula$pforms[[sev_family$dpars[i]]])){
+
+          sev_formula$pforms[[sev_family$dpars[i]]] =
+            as.formula(paste(sev_family$dpars[i], "~ 1"))
+
+        }
+
+      }
+
+    }
+
+    if(length(freq_family$dpars) > 1){
+
+      for(i in 2:length(sev_family$dpars)){
+
+        if(is.null(freq_formula$pforms[[freq_family$dpars[i]]])){
+
+        freq_formula$pforms[[freq_family$dpars[i]]] =
+          as.formula(paste(freq_family$dpars[i], "~ 1"))
+
+        }
+
+      }
+
+    }
+
     ## Convert Linear Model to Non-Linear
 
     if(!attr(freq_formula$formula, "nl")){

@@ -56,7 +56,7 @@ mu_fun = function(expo, region){
   c(EMEA = 8, USC = 9)[region]
 }
 
-sev_par2_vec = exp(c(EMEA = 0, USC = 0.4))
+sev_par2_vec = exp(c(EMEA = 0, USC = 0))
 
 sev_data =
   data.frame(
@@ -125,8 +125,7 @@ mv_model_fit =
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           1 + region,
-         sigma ~ 1 + region
+           1 + region
       ),
     
     freq_family = poisson(),
@@ -150,12 +149,14 @@ mv_model_fit =
                prior(lognormal(0, 1),
                      class = Intercept,
                      dpar = sigma,
-                     resp = loss),
-               
-               prior(normal(0, 1),
-                     class = b,
-                     dpar = sigma,
                      resp = loss)
+               
+               # ,
+               # 
+               # prior(normal(0, 1),
+               #       class = b,
+               #       dpar = sigma,
+               #       resp = loss)
     ),
     
     ded_name = "ded",
@@ -163,7 +164,7 @@ mv_model_fit =
     chains = 1,
     iter = 1000,
     warmup = 250,
-    refresh = 5,
+    refresh = 50,
     control = 
       list(adapt_delta = 0.999,
            max_treedepth = 15)
