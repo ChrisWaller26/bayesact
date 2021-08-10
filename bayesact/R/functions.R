@@ -7,7 +7,7 @@
 #'
 #' This allows for both linear and non-linear functions of the variates for
 #' both the frequency and severity model components.
-
+#'
 #' @param freq_formula BRMS Formula; Linear/Non-linear formula for frequency model
 #' @param sev_formula  BRMS Formula; Linear/Non-linear formula for severity model
 #' @param freq_family  Family; Family for frequency model
@@ -20,6 +20,7 @@
 #' @return             BRMS Fit
 #'
 #' @examples
+#'
 #' #### Simulate Frequency Data ####
 #'
 #' options(stringsAsFactors = FALSE,
@@ -213,6 +214,7 @@
 #'   )
 #'
 #' @export
+#'
 brms_freq_sev =
   function(
     freq_formula,
