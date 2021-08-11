@@ -87,3 +87,44 @@ An in-depth guide to all that BRMS has to offer can be found here: https://paul-
 
 In a nutshell, BRMS gives the user the option to easily create single- or multi-variate Bayesian models which can implement rating factors, splines, truncation, censoring, allowances for missing data and much more.
 
+Given how much BRMS can do out of the box, common sense dictates that it be used as a basis for this package - rather than recreating a huge amount of functionality which already exists in an easy-to-use and robust form.
+
+## Why create this package in the first place?
+
+### Limitations of BRMS
+
+Due to BRMS being so flexible and being able to create such a plethora of different models as is, one might think there is little need to create a new package in the first place.
+
+Though this is largely the case, BRMS does not (at the time of writing) easily allow one to use parameters which model one response variable and apply them to another response variable.
+
+Interactions between responses can be included in a multi-variate model but, for the purposes of this specific process, we cannot explicitly adjust the frequency response as we require without a bit of hacking, some knowledge of Stan and a fair amount of trial-and-error.
+
+### The goal of this package
+
+At a high level, the goal of this package is to allow one to easily create flexible Bayesian models which are specifically targeted towards actuaries and data scientists working in the field of insurance. 
+
+Much of what has been discussed already are problems that hundreds of pricing and reserving actuaries have had to deal with and many of which have come up with their own solutions or workarounds after a lot of work and time which could have been better utilised elsewhere.
+
+Creating a package such as this can allow a much larger group of people to create useful Bayesian insurance models easily, with most of the heavy-lifting done for them already.
+
+It also has the potential to create a lot more consistency across the industry and move on from the Wild West of insurance modelling that is still quite prevalent within small, medium and large businesses alike.
+
+## The `brms_freq_sev` function
+
+The `brms_freq_sev` function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.
+
+In mathematical notation, assuming "net" refers to "net of deductibles and capping at limits":
+
+$$S = \sum_{i=1}^K\sum_{j=1}^{N_i}X_{ij}$$
+$$N_i \sim N(\lambda_i \cdot (1-F_i(d_i)), ...)$$
+$$S = \mbox{Aggregate net loss across all policies}$$
+$$X_{ij} = \mbox{Size of } j \mbox{th loss for policy } i$$
+$$N_i = \mbox{Number of net claims for policy } i$$
+$$K = \mbox{Total number of policies}$$
+$$F_{i} = \mbox{ Cumulative density function for severity of policy } i$$
+
+$$N = \mbox{ frequency distribution}$$
+
+$$d_i = \mbox{ deductible for policy } i$$
+
+$$\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i$$

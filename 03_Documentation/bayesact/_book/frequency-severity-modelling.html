@@ -24,7 +24,7 @@
 <meta name="author" content="Chris Waller and Zongwen Tan" />
 
 
-<meta name="date" content="2021-08-10" />
+<meta name="date" content="2021-08-11" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -89,6 +89,12 @@
 <li class="chapter" data-level="3.1.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#overcoming-the-dependance-issue"><i class="fa fa-check"></i><b>3.1.4</b> Overcoming the dependance issue</a></li>
 </ul></li>
 <li class="chapter" data-level="3.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#why-use-brms"><i class="fa fa-check"></i><b>3.2</b> Why use BRMS?</a></li>
+<li class="chapter" data-level="3.3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#why-create-this-package-in-the-first-place"><i class="fa fa-check"></i><b>3.3</b> Why create this package in the first place?</a>
+<ul>
+<li class="chapter" data-level="3.3.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#limitations-of-brms"><i class="fa fa-check"></i><b>3.3.1</b> Limitations of BRMS</a></li>
+<li class="chapter" data-level="3.3.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-goal-of-this-package"><i class="fa fa-check"></i><b>3.3.2</b> The goal of this package</a></li>
+</ul></li>
+<li class="chapter" data-level="3.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-brms_freq_sev-function"><i class="fa fa-check"></i><b>3.4</b> The <code>brms_freq_sev</code> function</a></li>
 </ul></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
@@ -125,7 +131,8 @@
 <p>It is commonplace in most insurance pricing and reserving models to separate frequency (the number of claims) and severity (the magnitude of a loss, given there is a one) when fitting a model. This is because they are often driven by quite different phenomena, with different trends, risk factors and loss development patterns. In mathematical notation, we would write this as:</p>
 <p><span class="math display">\[S = \sum_{i=1}^{N} X_i\]</span></p>
 <p>where:</p>
-<p><span class="math display">\[N = \mbox{Number of losses}\]</span>
+<p><span class="math display">\[S = \mbox{Aggregate loss}\]</span>
+<span class="math display">\[N = \mbox{Number of losses}\]</span>
 <span class="math display">\[X_i = \mbox{Severity of } i \mbox{th loss}\]</span></p>
 <p>If all <span class="math inline">\(X_i\)</span> are assumed to be independent and identically distributed, as well as being independent of the distribution of the number of losses, <span class="math inline">\(N\)</span>, then we can fit these models separately using whatever methods we deem fit and then take samples from them, as required.</p>
 <p>This approach is the bread-and-butter for insurance pricing modelling, as it is easy to understand, straightforward to create and not overly computer power-intensive.</p>
@@ -146,52 +153,69 @@ where <span class="math inline">\(\lambda^*\)</span> is the average claim count,
 <p>One of the many great things about the Stan modelling language is that it allows one to optimise their model fitting using likelihoods which could vary on a policy-by-policy basis.</p>
 <p>For example, if we create a LogNormal-Poisson model using Stan and we want to deal with this left-censoring issue, we could loop through all the data points and adjust lambda by the survival function of the severity at the deductible for that data point:</p>
 <pre><code>data{
-
   int N_freq;              // Number of rows in frequency data
   int claim_count[N_freq]; // Observed claim counts
   vector[N_freq] D_freq;   // Deductibles from frequency data
-  
   int N_sev;           // Number of rows in severity data
   vector[N_sev] loss;  // Size of loss 
   vector[N_sev] D_sev; // Deductibles from severity data
-
 }
-
 parameters{
-
   real mu;
   real &lt;lower=0&gt; sigma;
   real &lt;lower=0&gt; lambda;
-
 }
-
 model{
-
   for(i in 1:N_sev){
-  
     target += lognormal_lpdf(loss[i] | mu, sigma) -
       lognormal_lccdf(D_sev[i] | mu, sigma)
-  
   }
-
   for(i in 1:N_freq){
-
     real lambda_i;
-
     lambda_i = lambda * (1 - lognormal_cdf(D_freq[i], mu, sigma));
-  
     target += poisson_lpmf(claim_count[i] | lambda_i);
-
   }
-
-}
-</code></pre>
+}</code></pre>
 <p>This method works well when the parameters are constants, but it becomes increasingly more complex when trying to implement additional features like rating factors, splines and non-linear relationships between covariates.</p>
 </div>
 </div>
 <div id="why-use-brms" class="section level2" number="3.2">
 <h2><span class="header-section-number">3.2</span> Why use BRMS?</h2>
-<p>One of the beauties of the BRMS package is that it allows</p>
+<p>One of the beauties of the BRMS package is that it allows one to create quite sophisticated Bayesian Stan models, while still uses simple R formulae syntax.</p>
+<p>An in-depth guide to all that BRMS has to offer can be found here: <a href="https://paul-buerkner.github.io/brms/" class="uri">https://paul-buerkner.github.io/brms/</a>.</p>
+<p>In a nutshell, BRMS gives the user the option to easily create single- or multi-variate Bayesian models which can implement rating factors, splines, truncation, censoring, allowances for missing data and much more.</p>
+<p>Given how much BRMS can do out of the box, common sense dictates that it be used as a basis for this package - rather than recreating a huge amount of functionality which already exists in an easy-to-use and robust form.</p>
+</div>
+<div id="why-create-this-package-in-the-first-place" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> Why create this package in the first place?</h2>
+<div id="limitations-of-brms" class="section level3" number="3.3.1">
+<h3><span class="header-section-number">3.3.1</span> Limitations of BRMS</h3>
+<p>Due to BRMS being so flexible and being able to create such a plethora of different models as is, one might think there is little need to create a new package in the first place.</p>
+<p>Though this is largely the case, BRMS does not (at the time of writing) easily allow one to use parameters which model one response variable and apply them to another response variable.</p>
+<p>Interactions between responses can be included in a multi-variate model but, for the purposes of this specific process, we cannot explicitly adjust the frequency response as we require without a bit of hacking, some knowledge of Stan and a fair amount of trial-and-error.</p>
+</div>
+<div id="the-goal-of-this-package" class="section level3" number="3.3.2">
+<h3><span class="header-section-number">3.3.2</span> The goal of this package</h3>
+<p>At a high level, the goal of this package is to allow one to easily create flexible Bayesian models which are specifically targeted towards actuaries and data scientists working in the field of insurance.</p>
+<p>Much of what has been discussed already are problems that hundreds of pricing and reserving actuaries have had to deal with and many of which have come up with their own solutions or workarounds after a lot of work and time which could have been better utilised elsewhere.</p>
+<p>Creating a package such as this can allow a much larger group of people to create useful Bayesian insurance models easily, with most of the heavy-lifting done for them already.</p>
+<p>It also has the potential to create a lot more consistency across the industry and move on from the Wild West of insurance modelling that is still quite prevalent within small, medium and large businesses alike.</p>
+</div>
+</div>
+<div id="the-brms_freq_sev-function" class="section level2" number="3.4">
+<h2><span class="header-section-number">3.4</span> The <code>brms_freq_sev</code> function</h2>
+<p>The <code>brms_freq_sev</code> function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.</p>
+<p>In mathematical notation, assuming “net” refers to “net of deductibles and capping at limits”:</p>
+<p><span class="math display">\[S = \sum_{i=1}^K\sum_{j=1}^{N_i}X_{ij}\]</span>
+<span class="math display">\[N_i \sim N(\lambda_i \cdot (1-F_i(d_i)), ...)\]</span>
+<span class="math display">\[S = \mbox{Aggregate net loss across all policies}\]</span>
+<span class="math display">\[X_{ij} = \mbox{Size of } j \mbox{th loss for policy } i\]</span>
+<span class="math display">\[N_i = \mbox{Number of net claims for policy } i\]</span>
+<span class="math display">\[K = \mbox{Total number of policies}\]</span>
+<span class="math display">\[F_{i} = \mbox{ Cumulative density function for severity of policy } i\]</span></p>
+<p><span class="math display">\[N = \mbox{ frequency distribution}\]</span></p>
+<p><span class="math display">\[d_i = \mbox{ deductible for policy } i\]</span></p>
+<p><span class="math display">\[\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i\]</span></p>
 
 </div>
 </div>
