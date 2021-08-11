@@ -16,6 +16,7 @@
 #' @param sev_data     Data Frame; The data required for the severity model
 #' @param priors       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
+#' @param freq_adj_fun Character; The Stan function to adjust the frequency mean by. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -225,6 +226,8 @@ brms_freq_sev =
     sev_data,
     priors,
     ded_name = "ded",
+    freq_adj_fun = NULL,
+    stanvars = stanvar(x = 0, name = "dummy_default_stanvar"),
     ...
   ){
 
@@ -328,8 +331,8 @@ brms_freq_sev =
 
         if(is.null(freq_formula$pforms[[freq_family$dpars[i]]])){
 
-        freq_formula$pforms[[freq_family$dpars[i]]] =
-          as.formula(paste(freq_family$dpars[i], "~ 1"))
+          freq_formula$pforms[[freq_family$dpars[i]]] =
+            as.formula(paste(freq_family$dpars[i], "~ 1"))
 
         }
 
@@ -630,8 +633,17 @@ brms_freq_sev =
       stanvar(
         x = full_data[[ded_name]],
         name = "ded"
-        )
       )
+    )
+
+    if(is.null(freq_adj_fun)){
+
+      freq_adj_fun =
+        str_glue(
+          "1 - {sev_dist}_cdf(ded[n], {sev_arg_stan})"
+        )
+
+    }
 
     if(freq_family$link == "log"){
 
@@ -642,7 +654,7 @@ brms_freq_sev =
 
             mu_!!{freq_resp}!![n] =
               mu_!!{freq_resp}!![n] +
-              log(1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
+              log(!!{freq_adj_fun}!!);
 
             }",
           .open = "!!{",
@@ -658,7 +670,7 @@ brms_freq_sev =
 
             mu_!!{freq_resp}!![n] =
               mu_!!{freq_resp}!![n] *
-              (1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
+              (!!{freq_adj_fun}!!);
 
             }",
           .open = "!!{",
@@ -709,7 +721,7 @@ brms_freq_sev =
       c(code_split[1:(sev_lik_loc - 2)],
         freq_ded_code,
         code_split[(sev_lik_loc - 1):length(code_split)]
-        ) %>%
+      ) %>%
       str_flatten("\n")
 
     freq_adj_code_lccdf =
@@ -735,7 +747,7 @@ brms_freq_sev =
           str_glue("weights_{freq_resp}[n] * log_diff_exp({freq_dist}"),
           freq_adj_code_lccdf,
           fixed = TRUE
-          ),
+        ),
         fixed = TRUE
       )
 
