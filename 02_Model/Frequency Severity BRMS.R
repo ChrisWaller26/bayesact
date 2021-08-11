@@ -118,7 +118,7 @@ freq_data_net =
 #### Run Model ####
 
 mv_model_fit =
-  bayesact::brms_freq_sev(
+  brms_freq_sev(
     
     freq_formula = 
       bf(claimcount ~ 1 + region),
@@ -144,12 +144,14 @@ mv_model_fit =
                
                prior(normal(8, 1),
                      class = Intercept,
-                     resp = loss),
-               
-               prior(lognormal(0, 1),
-                     class = Intercept,
-                     dpar = sigma,
                      resp = loss)
+               
+               # ,
+               # 
+               # prior(lognormal(0, 1),
+               #       class = Intercept,
+               #       dpar = shape,
+               #       resp = loss)
                
                # ,
                # 
@@ -182,23 +184,14 @@ model_post_samples =
       b_loss_s1_regionUSC,
     
     sigma_emea = exp(b_sigma_loss_Intercept), 
-    sigma_usc  = exp(b_sigma_loss_Intercept +
-                       b_sigma_loss_regionUSC),
+    sigma_usc  = exp(b_sigma_loss_Intercept 
+                     # + b_sigma_loss_regionUSC
+                     ),
     
     f1_emea = b_claimcount_f1_Intercept, 
     f1_usc  = b_claimcount_f1_Intercept +
       b_claimcount_f1_regionUSC
   )
-
-save(
-  full_data,
-  mv_model_fit,
-  model_post_samples,
-  file = "02_Model/mv_model_fit.RData"
-)
-
-base::load(file = "02_Model/mv_model_fit.RData")
-
 
 model_output =
   model_post_samples %>%
@@ -214,7 +207,7 @@ model_output =
       s1_usc  = 9,
       
       sigma_emea = exp(0), 
-      sigma_usc  = exp(0.4),
+      sigma_usc  = exp(0),
       
       f1_emea = 0.5, 
       f1_usc  = 1

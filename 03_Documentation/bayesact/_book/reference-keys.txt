@@ -2,3 +2,10 @@ preface
 about-the-authors
 chris-waller
 zongwen-tan
+frequency-severity-modelling
+an-overview-of-bayesian-frequency-severity-modelling
+introduction
+the-standard-frequency-severity-model
+whats-wrong-with-the-standard-approach
+overcoming-the-dependance-issue
+why-use-brms

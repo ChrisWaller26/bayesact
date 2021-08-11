@@ -415,78 +415,17 @@ brms_freq_sev =
 
     }
 
+    ## Add weight to ignore impact of severity on frequency and vice versa
 
-    freq_link =
-      freq_family[
-        grep("link",
-             setdiff(names(freq_family), c("linkinv", "linkfun")),
-             value = TRUE
-        )
-      ] %>%
-      unlist()
-
-    sev_link =
-      sev_family[
-        grep("link",
-             setdiff(names(sev_family), c("linkinv", "linkfun")),
-             value = TRUE
-        )
-      ] %>%
-      unlist()
-
-    #### Convert to censored if uncensored
-
-    ## Frequency
-
-    if(!grepl("|", freq_formula$formula[2], fixed = TRUE)){
-
-      freq_formula =
-        bf(
-          as.formula(
-            str_c(
-              as.character(freq_formula$formula[2]),
-              " | cens(no_censoring) + trunc(lb = 0, ub = 999999999L)~ ",
-              as.character(freq_formula$formula[3])
-            )
-          ),
-          freq_formula$pforms,
-          nl = TRUE
-        )
-
-    }
-
-    if(!grepl("cens", freq_formula$formula[2])){
-
-      freq_formula =
-        bf(
-          as.formula(
-            str_c(
-              gsub(
-                "|",
-                " | cens(no_censoring) + ",
-                as.character(freq_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(freq_formula$formula[3])
-            )
-          ),
-          freq_formula$pforms,
-          nl = TRUE
-        )
-
-    }
-
-    ## Severity
-
-    if(!grepl("|", sev_formula$formula[2], fixed = TRUE)){
+    if(!grepl("|", as.character(sev_formula$formula[2]), fixed = TRUE)){
 
       sev_formula =
         bf(
           as.formula(
-            str_c(
+            paste(
               as.character(sev_formula$formula[2]),
-              " | cens(no_censoring) + trunc(lb = 0, ub = 1e99) ~ ",
+              "| weights(1 - freq) ~ ",
+
               as.character(sev_formula$formula[3])
             )
           ),
@@ -494,151 +433,128 @@ brms_freq_sev =
           nl = TRUE
         )
 
-    }
-
-    if(!grepl("cens", sev_formula$formula[2])){
+    }else if(!grepl("weights", as.character(sev_formula$formula[2]))){
 
       sev_formula =
         bf(
           as.formula(
-            str_c(
-              gsub(
-                "|",
-                " | cens(no_censoring) + ",
-                as.character(sev_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(sev_formula$formula[3])
-            )
-          ),
-          sev_formula$pforms,
-          nl = TRUE
-        )
-
-    }
-
-    #### Convert unbounded model to truncated
-
-    ## Frequency
-
-    if(grepl("lb =|lb=|trunc", freq_formula$formula[2]) &
-       !grepl("ub =|ub=", freq_formula$formula[2])){
-
-      freq_formula =
-        bf(
-          as.formula(
-            str_c(
-              gsub(
-                "trunc(",
-                "trunc(ub = 999999999L, ",
-                as.character(freq_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(freq_formula$formula[3])
-            )
-          ),
-          freq_formula$pforms,
-          nl = TRUE
-        )
-
-    }else if(!grepl("lb =|lb=", freq_formula$formula[2]) &
-             grepl("ub =|ub=", freq_formula$formula[2])){
-
-      freq_formula =
-        bf(
-          as.formula(
-            str_c(
-              gsub(
-                "trunc(",
-                "trunc(lb = 0L, ",
-                as.character(freq_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(freq_formula$formula[3])
-            )
-
-          ),
-          freq_formula$pforms,
-          nl = TRUE
-        )
-
-    }else if(!grepl("trunc", freq_formula$formula[2])){
-
-      freq_formula =
-        bf(
-          as.formula(
-            str_c(
-              as.character(freq_formula$formula[2]),
-              " + trunc(lb = 0L, ub = 999999999L) ~ ",
-              as.character(freq_formula$formula[3])
-            )
-          ),
-          freq_formula$pforms,
-          nl = TRUE
-        )
-
-    }
-
-    ## Severity
-
-    if(grepl("lb =|lb=|trunc", sev_formula$formula[2]) &
-       !grepl("ub =|ub=", sev_formula$formula[2])){
-
-      sev_formula =
-        bf(
-          as.formula(
-            str_c(
-              gsub(
-                "trunc(",
-                "trunc(ub = 1e99, ",
-                as.character(sev_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(sev_formula$formula[3])
-            )
-
-          ),
-          sev_formula$pforms,
-          nl = TRUE
-        )
-
-    }else if(!grepl("lb =|lb=", sev_formula$formula[2]) &
-             grepl("ub =|ub=", sev_formula$formula[2])){
-
-      sev_formula =
-        bf(
-          as.formula(
-            str_c(
-              gsub(
-                "trunc(",
-                "trunc(lb = 0, ",
-                as.character(sev_formula$formula[2]),
-                fixed = TRUE
-              ),
-              " ~ ",
-              as.character(sev_formula$formula[3])
-            )
-          ),
-          sev_formula$pforms,
-          nl = TRUE
-        )
-
-    }else if(!grepl("trunc", sev_formula$formula[2])){
-
-      sev_formula =
-        bf(
-          as.formula(
-            str_c(
+            paste(
               as.character(sev_formula$formula[2]),
-              " + trunc(lb = 0, ub = 1e99) ~ ",
+              "+ weights(1 - freq) ~ ",
+
               as.character(sev_formula$formula[3])
             )
           ),
           sev_formula$pforms,
+          nl = TRUE
+        )
+
+    }else{
+
+      weight_loc =
+        str_locate(as.character(sev_formula$formula[2]),
+                   "weights")[, "start"]
+
+      weight_end_loc =
+        str_locate_all(
+          as.character(sev_formula$formula[2]),
+          "\\)") %>%
+        as.data.frame() %>%
+        filter(start > weight_loc) %>%
+        slice(1) %>%
+        pull(start)
+
+      sev_formula =
+        bf(
+          as.formula(
+            str_replace(
+              paste(
+                substr(
+                  as.character(sev_formula$formula[2]),
+                  1,
+                  weight_end_loc - 1
+                ),
+                ") * (1 - freq))",
+                "~",
+                as.character(sev_formula$formula[3])
+              ),
+              "weights",
+              "weights("
+            )
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+
+    }
+
+
+    if(!grepl("|", as.character(freq_formula$formula[2]), fixed = TRUE)){
+
+      freq_formula =
+        bf(
+          as.formula(
+            paste(
+              as.character(freq_formula$formula[2]),
+              "| weights(freq) ~ ",
+
+              as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+
+    }else if(!grepl("weights", as.character(freq_formula$formula[2]))){
+
+      freq_formula =
+        bf(
+          as.formula(
+            paste(
+              as.character(freq_formula$formula[2]),
+              "+ weights(freq) ~ ",
+
+              as.character(freq_formula$formula[3])
+            )
+          ),
+          freq_formula$pforms,
+          nl = TRUE
+        )
+
+    }else{
+
+      weight_loc =
+        str_locate(as.character(freq_formula$formula[2]),
+                   "weights")[, "start"]
+
+      weight_end_loc =
+        str_locate_all(
+          as.character(freq_formula$formula[2]),
+          "\\)") %>%
+        as.data.frame() %>%
+        filter(start > weight_loc) %>%
+        slice(1) %>%
+        pull(start)
+
+      freq_formula =
+        bf(
+          as.formula(
+            str_replace(
+              paste(
+                substr(
+                  as.character(freq_formula$formula[2]),
+                  1,
+                  weight_end_loc - 1
+                ),
+                ") * freq)",
+                "~",
+                as.character(freq_formula$formula[3])
+              ),
+              "weights",
+              "weights("
+            )
+          ),
+          freq_formula$pforms,
           nl = TRUE
         )
 
@@ -685,51 +601,6 @@ brms_freq_sev =
         }
       )
 
-
-    stanvars = c(
-      stanvar(
-        x = full_data[[ded_name]],
-        name = "ded"
-      ),
-      stanvar(
-        x = full_data$freq,
-        name = "freq"
-      ),
-      stanvar(
-        scode =
-          str_glue(
-            "    vector[N_{sev_resp}] sev_target; \n
-               vector[N_{freq_resp}] freq_target;"
-          ),
-        block = "model"
-      )
-    )
-
-    ## Setup Stan Code and Data
-
-    mv_model_code =
-      make_stancode(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars
-      )
-
-    mv_model_data =
-      make_standata(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars
-      )
-
-    mv_model_fit <-
-      brm( formula = mv_model_formula,
-           data = full_data,
-           prior = priors,
-           empty = TRUE
-      )
-
     ## Extract Info from Formula Functions
 
     sev_arg = fit_sev$family$dpars
@@ -761,247 +632,98 @@ brms_freq_sev =
         ),
         ", ")
 
-    sev_par = setdiff(names(fit_sev$pforms), sev_arg)
-    freq_par = setdiff(names(fit_freq$pforms), freq_arg)
-
-    sev_inv_link =
-      case_when(
-        sev_link == "identity" ~ "",
-        sev_link == "log"      ~ "exp",
-        sev_link == "logit"    ~ "inv_logit"
-      )
-    freq_inv_link =
-      case_when(
-        freq_link == "identity" ~ "",
-        freq_link == "log"      ~ "exp",
-        freq_link == "logit"    ~ "inv_logit"
-      )
-
-    sev_formula_r = as.character(fit_sev$formula[3])
-    freq_formula_r = as.character(fit_freq$formula[3])
-
-    sev_feature_stan = grep(str_glue("C_{sev_resp}_"),
-                            names(mv_model_data),
-                            value = TRUE,
-                            fixed = TRUE)
-    freq_feature_stan = grep(str_glue("C_{freq_resp}_"),
-                             names(mv_model_data),
-                             value = TRUE,
-                             fixed = TRUE)
-
-    ## Severity Features
-
-    sev_feature =
-      gsub(
-        '[^0-9|A-Z|a-z|_| ]',
-        " ",
-        str_squish(as.character(mv_model_fit$formula$forms[[sev_resp]]$formula[3]))
-      ) %>%
-      str_squish()
-
-    for(par in sev_par){
-
-      sev_feature = trimws(gsub(par, "", sev_feature))
-
-    }
-
-    sev_feature = unique(str_split(sev_feature, " ")[[1]])
-
-    ## Frequency Features
-
-    freq_feature =
-      gsub(
-        '[^0-9|A-Z|a-z|_| ]',
-        " ",
-        str_squish(as.character(mv_model_fit$formula$forms[[freq_resp]]$formula[3]))
-      ) %>%
-      str_squish()
-
-    for(par in freq_par){
-
-      freq_feature = trimws(gsub(par, "", freq_feature))
-
-    }
-
-    freq_feature = unique(str_split(freq_feature, " ")[[1]])
-
-    ## Severity Stan Formula
-
-    sev_formula_stan =
-      paste0(
-        sev_inv_link[1],
-        "(",
-        sev_formula_r,
-        ")"
-      )
-
-    if(length(sev_feature_stan) >= 1){
-
-      for(i in seq(length(sev_feature_stan))){
-
-        sev_formula_stan =
-          gsub(
-            sev_feature[i],
-            paste0(sev_feature_stan[i], "[n]"),
-            sev_formula_stan
-          )
-
-      }
-    }
-
-    ## Frequency Stan Formula
-
-    freq_formula_stan =
-      paste0(
-        freq_inv_link[1],
-        "(",
-        freq_formula_r,
-        ")"
-      )
-
-    if(length(freq_feature_stan) >= 1){
-
-      for(i in seq(length(freq_feature_stan))){
-
-        freq_formula_stan =
-          gsub(
-            freq_feature[i],
-            paste0(freq_feature_stan[i], "[n]"),
-            freq_formula_stan
-          )
-
-      }
-
-    }
-
-
-    ## Convert to Stan function format
-
-    for(par in sev_par){
-
-      sev_formula_stan =
-        gsub(
-          par,
-          paste0("nlp_", sev_resp, "_", par, "[n]"),
-          sev_formula_stan
+    stanvars = c(
+      stanvar(
+        x = full_data[[ded_name]],
+        name = "ded"
         )
+      )
 
-    }
-
-    for(par in freq_par){
-
-      freq_formula_stan =
-        gsub(
-          par,
-          paste0("nlp_", freq_resp, "_", par, "[n]"),
-          freq_formula_stan
-        )
-
-    }
-
-    ## Modify Template Code
-
-    template_stan_code =
-
-    '
-
-  for(n in 1:N_!!{freq_resp}!!){
-
-    mu_!!{freq_resp}!![n] =
-      mu_!!{freq_resp}!![n] *
-       (1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
-
-  }
-
-  for (n in 1:N_!!{sev_resp}!!) {
-    // special treatment of censored data
-      if (cens_!!{sev_resp}!![n] == 0) {
-        sev_target[n] = !!{sev_dist}!!_lpdf(Y_!!{sev_resp}!![n] | !!{sev_arg_stan}!!) -
-        log_diff_exp(!!{sev_dist}!!_lcdf(ub_!!{sev_resp}!![n] |!!{sev_arg_stan}!!), !!{sev_dist}!!_lcdf(lb_!!{sev_resp}!![n] | !!{sev_arg_stan}!!));
-      } else if (cens_!!{sev_resp}!![n] == 1) {
-        sev_target[n] = !!{sev_dist}!!_lccdf(Y_!!{sev_resp}!![n] | !!{sev_arg_stan}!!) -
-        log_diff_exp(!!{sev_dist}!!_lcdf(ub_!!{sev_resp}!![n] | !!{sev_arg_stan}!!), !!{sev_dist}!!_lcdf(lb_!!{sev_resp}!![n] | !!{sev_arg_stan}!!));
-      } else if (cens_!!{sev_resp}!![n] == -1) {
-        sev_target[n] = !!{sev_dist}!!_lcdf(Y_!!{sev_resp}!![n] | !!{sev_arg_stan}!!) -
-        log_diff_exp(!!{sev_dist}!!_lcdf(ub_!!{sev_resp}!![n] | !!{sev_arg_stan}!!), !!{sev_dist}!!_lcdf(lb_!!{sev_resp}!![n] | !!{sev_arg_stan}!!));
-      }
-
-      // if(is_nan(sev_target[n]) || is_inf(sev_target[n])){
-      //
-      //   print(
-      //     "Y_loss: ", Y_loss[n],
-      //     "     n: ", n,
-      //     "     mu_loss: ", mu_loss[n],
-      //     "     shape_loss: ", shape_loss[n],
-      //     "     Intercept_shape_loss: ", Intercept_shape_loss,
-      //     "     b_shape_loss: ", b_shape_loss,
-      //     "     b_loss: ", b_loss_s1,
-      //   "     lb lcdf: ", gamma_lcdf(lb_loss[n] | shape_loss[n], mu_loss[n]), "________",
-      //   "     ub lcdf: ", gamma_lcdf(ub_loss[n] | shape_loss[n], mu_loss[n]),
-      //   "    log diff 2:", log_diff_exp(!!{sev_dist}!!_lcdf(ub_!!{sev_resp}!![n] | !!{sev_arg_stan}!!), !!{sev_dist}!!_lcdf(lb_!!{sev_resp}!![n] | !!{sev_arg_stan}!!))
-      //   );
-      //
-      // }
-
-    }
-
-    target += sum(sev_target .* (1 - freq));
-
-    for (n in 1:N_!!{freq_resp}!!) {
-    // special treatment of censored data
-      if (cens_!!{freq_resp}!![n] == 0) {
-        freq_target[n] = !!{freq_dist}!!_lpmf(Y_!!{freq_resp}!![n] | !!{freq_arg_stan}!!) -
-        log_diff_exp(!!{freq_dist}!!_lcdf(ub_!!{freq_resp}!![n] | !!{freq_arg_stan}!!), !!{freq_dist}!!_lcdf(lb_!!{freq_resp}!![n] - 1 | !!{freq_arg_stan}!!));
-      } else if (cens_!!{freq_resp}!![n] == 1) {
-        freq_target[n] = !!{freq_dist}!!_lccdf(Y_!!{freq_resp}!![n] | !!{freq_arg_stan}!!) -
-        log_diff_exp(!!{freq_dist}!!_lcdf(ub_!!{freq_resp}!![n] | !!{freq_arg_stan}!!), !!{freq_dist}!!_lcdf(lb_!!{freq_resp}!![n] - 1 | !!{freq_arg_stan}!!));
-      } else if (cens_!!{freq_resp}!![n] == -1) {
-        freq_target[n] = !!{freq_dist}!!_lcdf(Y_!!{freq_resp}!![n] | !!{freq_arg_stan}!!) -
-        log_diff_exp(!!{freq_dist}!!_lcdf(ub_!!{freq_resp}!![n] | !!{freq_arg_stan}!!), !!{freq_dist}!!_lcdf(lb_!!{freq_resp}!![n] - 1 | !!{freq_arg_stan}!!));
-      }
-
-    }
-
-    target += sum(freq_target .* freq);
-
-  }
-
-    '
-
-    code_model_template =
+    freq_ded_code =
       str_glue(
-        template_stan_code,
+        "
+          for(n in 1:N_!!{freq_resp}!!){
+
+            mu_!!{freq_resp}!![n] =
+              mu_!!{freq_resp}!![n] *
+              (1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
+
+            }",
         .open = "!!{",
         .close = "}!!"
+        )
+
+    ## Setup Stan Code and Data
+
+    mv_model_code =
+      make_stancode(
+        mv_model_formula,
+        data = full_data,
+        prior = priors,
+        stanvars = stanvars
+      )
+
+    mv_model_data =
+      make_standata(
+        mv_model_formula,
+        data = full_data,
+        prior = priors,
+        stanvars = stanvars
+      )
+
+    mv_model_fit <-
+      brm( formula = mv_model_formula,
+           data = full_data,
+           prior = priors,
+           empty = TRUE
+      )
+
+    code_split =
+      str_split(
+        mv_model_code,
+        "\n"
+      ) %>%
+      unlist()
+
+    sev_lik_loc =
+      grep(
+        "special treatment of censored data",
+        code_split
+      )[1]
+
+    freq_adj_code =
+      c(code_split[1:(sev_lik_loc - 2)],
+        freq_ded_code,
+        code_split[(sev_lik_loc - 1):length(code_split)]
+        ) %>%
+      str_flatten("\n")
+
+    freq_adj_code_lccdf =
+      gsub(
+        str_glue("{sev_dist}_lccdf"),
+        str_glue("weights_{sev_resp}[n] * {sev_dist}_lccdf"),
+
+        gsub(
+          str_glue("{freq_dist}_lccdf"),
+          str_glue("weights_{freq_resp}[n] * {freq_dist}_lccdf"),
+          freq_adj_code
+        )
+
       )
 
     adjusted_code =
-      paste(
-        substr(
-          mv_model_code,
-          1,
-          str_locate(mv_model_code, "model \\{")[, 1] - 1
-        ),
+      gsub(
+        str_glue("log_diff_exp({sev_dist}"),
+        str_glue("weights_{sev_resp}[n] * log_diff_exp({sev_dist}"),
 
-        substr(
-          mv_model_code,
-          str_locate(mv_model_code, "model \\{")[, 1],
-          str_locate(mv_model_code,
-                     str_c(
-                       "for \\(n in 1\\:N_", sev_resp, "\\) \\{\n    // special treatment"))[, 1] - 1
-        ),
-
-        code_model_template,
-
-        substr(
-          mv_model_code,
-          str_locate(mv_model_code, "// priors")[, 1],
-          nchar(mv_model_code)
-        ),
-
-        sep = "\n"
+        gsub(
+          str_glue("log_diff_exp({freq_dist}"),
+          str_glue("weights_{freq_resp}[n] * log_diff_exp({freq_dist}"),
+          freq_adj_code_lccdf,
+          fixed = TRUE
+          ),
+        fixed = TRUE
       )
-
 
     mv_model_fit_stan =
       stan(

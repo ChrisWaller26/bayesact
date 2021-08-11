@@ -1,0 +1,89 @@
+
+# Frequency-Severity Modelling
+ 
+## An overview of Bayesian frequency-severity modelling
+ 
+### Introduction
+ 
+In the world of insurance, there are a vast array of different lines of business that can be written - all of which can have very different and complex policy and claim structures. As a consequence, different lines of business may require vastly different modelling approaches (different rating factors, use of splines, linear vs non-linear relationships between covariates etc.).
+
+The ultimate goal of any actuary or data scientist when developing a predictive insurance model is to actually predict future claims experience and/or loss development, with a clear, numerical understanding of the uncertainty around these predictions. Achieving this with traditional frequentist methods requires a number of potentially significant implicit assumptions to be made about the distribution of the parameters that form part of the model. 
+
+Adopting a Bayesian approach allows the modeller to better understand the uncertainty around their parameter estimates, as well as being able to embed prior knowledge into their calculation to create reasonable predictions - even when good quality data may be scarce.
+
+### The standard frequency-severity model
+
+It is commonplace in most insurance pricing and reserving models to separate frequency (the number of claims) and severity (the magnitude of a loss, given there is a one) when fitting a model. This is because they are often driven by quite different phenomena, with different trends, risk factors and loss development patterns. In mathematical notation, we would write this as:
+
+$$S = \sum_{i=1}^{N} X_i$$
+
+where:
+
+$$S = \mbox{Aggregate loss}$$
+$$N = \mbox{Number of losses}$$
+$$X_i = \mbox{Severity of } i \mbox{th loss}$$
+
+If all $X_i$ are assumed to be independent and identically distributed, as well as being independent of the distribution of the number of losses, $N$, then we can fit these models separately using whatever methods we deem fit and then take samples from them, as required.
+
+This approach is the bread-and-butter for insurance pricing modelling, as it is easy to understand, straightforward to create and not overly computer power-intensive.
+
+### What's wrong with the standard approach?
+
+Even if a Bayesian approach is taken to fitting the frequency and severity models, the standard approach does have some very key flaws when modelling a typical book of insurance. 
+
+Most insurance policies have some form of deductible, excess or attachment point which removes a company's exposure to very small, attritional losses. In general, losses below this deductible will go unreported, therefore resulting in he severity data being left-truncated.
+
+Moreover, the frequency data set will be impacted, as (all other things being equal) claim counts will be lower if deductibles are higher.
+
+So why is this an issue? Mainly that, given that only the losses above the deductible end up in the severity data (assuming no net zero losses are reported) and that the claim counts in the frequency data are lower when deductibles are higher, then the severity and frequency distribution are not independent, as we first assumed.
+
+In other words, if we have a policy for which the ground-up losses (i.e. losses assuming no deductible) have a cumulative density function $F$ and an expected annual ground-up claim count $\lambda$ then, given the policy has a deductible $D$:
+
+$$\lambda^* = \lambda \cdot (1-F(D))$$
+where $\lambda^*$ is the average claim count, net of deductible.
+
+A further complication can be that $D$ may vary on a policy-by-policy basis, so it may not be appropriate or possible to just model $\lambda^*$ directly.
+
+### Overcoming the dependance issue
+
+One of the many great things about the Stan modelling language is that it allows one to optimise their model fitting using likelihoods which could vary on a policy-by-policy basis.
+
+For example, if we create a LogNormal-Poisson model using Stan and we want to deal with this left-censoring issue, we could loop through all the data points and adjust lambda by the survival function of the severity at the deductible for that data point:
+
+```
+data{
+  int N_freq;              // Number of rows in frequency data
+  int claim_count[N_freq]; // Observed claim counts
+  vector[N_freq] D_freq;   // Deductibles from frequency data
+  int N_sev;           // Number of rows in severity data
+  vector[N_sev] loss;  // Size of loss 
+  vector[N_sev] D_sev; // Deductibles from severity data
+}
+parameters{
+  real mu;
+  real <lower=0> sigma;
+  real <lower=0> lambda;
+}
+model{
+  for(i in 1:N_sev){
+    target += lognormal_lpdf(loss[i] | mu, sigma) -
+      lognormal_lccdf(D_sev[i] | mu, sigma)
+  }
+  for(i in 1:N_freq){
+    real lambda_i;
+    lambda_i = lambda * (1 - lognormal_cdf(D_freq[i], mu, sigma));
+    target += poisson_lpmf(claim_count[i] | lambda_i);
+  }
+}
+```
+
+This method works well when the parameters are constants, but it becomes increasingly more complex when trying to implement additional features like rating factors, splines and non-linear relationships between covariates.
+
+## Why use BRMS?
+
+One of the beauties of the BRMS package is that it allows one to create quite sophisticated Bayesian Stan models, while still uses simple R formulae syntax.
+
+An in-depth guide to all that BRMS has to offer can be found here: https://paul-buerkner.github.io/brms/.
+
+In a nutshell, BRMS gives the user the option to easily create single- or multi-variate Bayesian models which can implement rating factors, splines, truncation, censoring, allowances for missing data and much more.
+
