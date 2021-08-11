@@ -33,7 +33,7 @@ freq_n = 5e3
 # Defines a non-linear function for lambda to test model still works
 
 freq_mu_fun = function(expo, region){
-  exp(c(EMEA = 0.5, USC = 1)[region]) 
+  exp(c(EMEA = 0.5, USC = 0.8)[region]) 
 } 
 
 freq_data =
@@ -164,7 +164,7 @@ mv_model_fit =
     ded_name = "ded",
     
     chains = 1,
-    iter = 1000,
+    iter = 500,
     warmup = 250,
     refresh = 50,
     control = 
@@ -210,7 +210,7 @@ model_output =
       sigma_usc  = exp(0),
       
       f1_emea = 0.5, 
-      f1_usc  = 1
+      f1_usc  = 0.8
     )
   )
 

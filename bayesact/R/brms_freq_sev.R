@@ -606,12 +606,6 @@ brms_freq_sev =
     sev_arg = fit_sev$family$dpars
     freq_arg = fit_freq$family$dpars
 
-    if(sev_dist == "gamma"){
-
-      sev_arg = rev(sev_arg)
-
-    }
-
     sev_arg_stan =
       str_flatten(
         str_c(
@@ -639,9 +633,27 @@ brms_freq_sev =
         )
       )
 
-    freq_ded_code =
-      str_glue(
-        "
+    if(freq_family$link == "log"){
+
+      freq_ded_code =
+        str_glue(
+          "
+          for(n in 1:N_!!{freq_resp}!!){
+
+            mu_!!{freq_resp}!![n] =
+              mu_!!{freq_resp}!![n] +
+              log(1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
+
+            }",
+          .open = "!!{",
+          .close = "}!!"
+        )
+
+    }else{
+
+      freq_ded_code =
+        str_glue(
+          "
           for(n in 1:N_!!{freq_resp}!!){
 
             mu_!!{freq_resp}!![n] =
@@ -649,9 +661,11 @@ brms_freq_sev =
               (1 - !!{sev_dist}!!_cdf(ded[n], !!{sev_arg_stan}!!));
 
             }",
-        .open = "!!{",
-        .close = "}!!"
+          .open = "!!{",
+          .close = "}!!"
         )
+
+    }
 
     ## Setup Stan Code and Data
 
