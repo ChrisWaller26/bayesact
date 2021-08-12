@@ -24,7 +24,7 @@
 <meta name="author" content="Chris Waller and Zongwen Tan" />
 
 
-<meta name="date" content="2021-08-11" />
+<meta name="date" content="2021-08-12" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -94,7 +94,12 @@
 <li class="chapter" data-level="3.3.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#limitations-of-brms"><i class="fa fa-check"></i><b>3.3.1</b> Limitations of BRMS</a></li>
 <li class="chapter" data-level="3.3.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-goal-of-this-package"><i class="fa fa-check"></i><b>3.3.2</b> The goal of this package</a></li>
 </ul></li>
-<li class="chapter" data-level="3.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-brms_freq_sev-function"><i class="fa fa-check"></i><b>3.4</b> The <code>brms_freq_sev</code> function</a></li>
+<li class="chapter" data-level="3.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-brms_freq_sev-function"><i class="fa fa-check"></i><b>3.4</b> The <code>brms_freq_sev</code> function</a>
+<ul>
+<li class="chapter" data-level="3.4.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#how-it-works"><i class="fa fa-check"></i><b>3.4.1</b> How it works</a></li>
+<li class="chapter" data-level="3.4.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#how-to-use-it"><i class="fa fa-check"></i><b>3.4.2</b> How to use it</a></li>
+<li class="chapter" data-level="3.4.3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#example"><i class="fa fa-check"></i><b>3.4.3</b> Example</a></li>
+</ul></li>
 </ul></li>
 <li class="divider"></li>
 <li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
@@ -204,6 +209,8 @@ model{
 </div>
 <div id="the-brms_freq_sev-function" class="section level2" number="3.4">
 <h2><span class="header-section-number">3.4</span> The <code>brms_freq_sev</code> function</h2>
+<div id="how-it-works" class="section level3" number="3.4.1">
+<h3><span class="header-section-number">3.4.1</span> How it works</h3>
 <p>The <code>brms_freq_sev</code> function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.</p>
 <p>In mathematical notation, assuming “net” refers to “net of deductibles and capping at limits”:</p>
 <p><span class="math display">\[S = \sum_{i=1}^K\sum_{j=1}^{N_i}X_{ij}\]</span>
@@ -216,7 +223,276 @@ model{
 <p><span class="math display">\[N = \mbox{ frequency distribution}\]</span></p>
 <p><span class="math display">\[d_i = \mbox{ deductible for policy } i\]</span></p>
 <p><span class="math display">\[\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i\]</span></p>
+</div>
+<div id="how-to-use-it" class="section level3" number="3.4.2">
+<h3><span class="header-section-number">3.4.2</span> How to use it</h3>
+<p>Using the <code>brms_freq_sev</code> function is very similar to defining a standard BRMS model, but with the frequency and severity BRMS formulae and their distributions specified separately.</p>
+<div id="usage" class="section level4" number="3.4.2.1">
+<h4><span class="header-section-number">3.4.2.1</span> Usage</h4>
+<pre><code>brms_freq_sev =
+  function(
+    freq_formula,
+    sev_formula,
+    freq_family,
+    sev_family,
+    freq_data,
+    sev_data,
+    priors,
+    ded_name = &quot;ded&quot;,
+    freq_adj_fun = NULL,
+    ...
+  )</code></pre>
+</div>
+<div id="arguments" class="section level4" number="3.4.2.2">
+<h4><span class="header-section-number">3.4.2.2</span> Arguments</h4>
+<div id="freq_formula" class="section level5" number="3.4.2.2.1">
+<h5><span class="header-section-number">3.4.2.2.1</span> freq_formula</h5>
+<p>Class: BRMS Formula</p>
+<p>Description: Linear/Non-linear formula for frequency model</p>
+<p>Example:</p>
+<pre><code>bf(claimcount ~ f1 + expo ^ f2,
+    f1 ~ 1 + region,
+    f2 ~ 1,
+    nl = TRUE)</code></pre>
+</div>
+<div id="sev_formula" class="section level5" number="3.4.2.2.2">
+<h5><span class="header-section-number">3.4.2.2.2</span> sev_formula</h5>
+<p>Class: BRMS Formula</p>
+<p>Description: Linear/Non-linear formula for severity model</p>
+<p>Example:</p>
+<pre><code>bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 1 + region + s(expo),
+   sigma ~ 1 + region)</code></pre>
+</div>
+<div id="freq_family" class="section level5" number="3.4.2.2.3">
+<h5><span class="header-section-number">3.4.2.2.3</span> freq_family</h5>
+<p>Class: Family</p>
+<p>Description: Family for frequency model</p>
+<p>Example: <code>poisson()</code></p>
+</div>
+<div id="sev_family" class="section level5" number="3.4.2.2.4">
+<h5><span class="header-section-number">3.4.2.2.4</span> sev_family</h5>
+<p>Class: Family</p>
+<p>Description: Family for severity model</p>
+<p>Example: <code>lognormal()</code></p>
+</div>
+<div id="freq_data" class="section level5" number="3.4.2.2.5">
+<h5><span class="header-section-number">3.4.2.2.5</span> freq_data</h5>
+<p>Class: Data Frame</p>
+<p>Description: The data required for the frequency model. Must contain a column named <code>ded_name</code> (described below).</p>
+</div>
+<div id="sev_data" class="section level5" number="3.4.2.2.6">
+<h5><span class="header-section-number">3.4.2.2.6</span> sev_data</h5>
+<p>Class: Data Frame</p>
+<p>Description: The data required for the severity model</p>
+</div>
+<div id="priors" class="section level5" number="3.4.2.2.7">
+<h5><span class="header-section-number">3.4.2.2.7</span> priors</h5>
+<p>Class: BRMS Prior</p>
+<p>Description: The set of priors for both the frequency and severity models</p>
+<p>Example:</p>
+<pre><code>
+c(prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f2),
+               
+  prior(normal(8, 1),
+        class = Intercept,
+        resp = loss)
+        )
+</code></pre>
+</div>
+<div id="ded_name" class="section level5" number="3.4.2.2.8">
+<h5><span class="header-section-number">3.4.2.2.8</span> ded_name</h5>
+<p>Class: Character</p>
+<p>Description: The column name for the deductible/excess/attachment point in the frequency data.</p>
+</div>
+<div id="freq_adj_fun" class="section level5" number="3.4.2.2.9">
+<h5><span class="header-section-number">3.4.2.2.9</span> freq_adj_fun</h5>
+<p>Class: Character</p>
+<p>Description: The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used. This could be useful, say, if you want to limit the adjustment the deductible has on the frequency.</p>
+<p>Example:</p>
+<pre><code>&quot;fmax(0.2, 1 - lognormal_cdf(ded[n], mu_loss[n], sigma_loss[n]))&quot;
+</code></pre>
+</div>
+<div id="section" class="section level5" number="3.4.2.2.10">
+<h5><span class="header-section-number">3.4.2.2.10</span> …</h5>
+<p>Description: These can be any parameter which the standard <code>brm</code> function accepts.</p>
+<p>Example:</p>
+<pre><code>chains = 2,
+iter = 1000,
+warmup = 250,
+control = list(max_treedepth = 15)</code></pre>
+</div>
+</div>
+</div>
+<div id="example" class="section level3" number="3.4.3">
+<h3><span class="header-section-number">3.4.3</span> Example</h3>
+<pre><code>Simulate Frequency Data ####
 
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
+
+#&#39; Assuming one rating factor: region.
+
+set.seed(123456)
+
+# Region Names
+
+regions = c(&quot;EMEA&quot;, &quot;USC&quot;)
+
+# Number of frequency samples
+
+freq_n = 5e3
+
+# Defines a function for lambda
+
+freq_lambda = exp(c(EMEA = 0.5, USC = 1))
+
+# Generate samples for ground-up frequency data
+
+freq_data =
+  data.frame(
+    pol_id =  seq(freq_n),
+    ded = runif(freq_n, 1e3, 5e3),
+    lim = runif(freq_n, 50e3, 100e3),
+    region = sample(regions, freq_n, replace = T)
+  ) %&gt;%
+  mutate(
+    freq_lambda = freq_lambda[region],
+    claimcount_fgu =
+      rpois(freq_n, freq_lambda)
+  )
+
+Simulate severity Data ####
+
+mu_vec = c(EMEA = 8, USC = 9)
+sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+sev_data =
+  data.frame(
+    ded = rep(freq_data$ded,
+              freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
+    region = rep(freq_data$region,
+                 freq_data$claimcount_fgu)
+  ) %&gt;%
+  mutate(
+    loss_uncapped =
+      unlist(
+        lapply(
+          seq(freq_n),
+          function(i){
+
+            rlnorm(freq_data$claimcount_fgu[i],
+                   mu_vec[freq_data$region[i]],
+                   sigma_vec[freq_data$region[i]]
+            )
+
+          }
+        )
+      )
+  ) %&gt;%
+  mutate(
+    pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
+  ) %&gt;%
+  filter(
+    loss_uncapped &gt; ded
+  ) %&gt;%
+  mutate(
+    claim_id = row_number(),
+    lim_exceed = as.integer(loss_uncapped &gt;= lim),
+    loss = pmin(loss_uncapped, lim)
+  )
+
+# Frequency data filtered for losses below the deductible
+
+freq_data_net =
+  freq_data %&gt;%
+  left_join(
+    sev_data %&gt;%
+      group_by(
+        pol_id
+      ) %&gt;%
+      summarise(
+        claimcount = n()
+      ) %&gt;%
+      ungroup(),
+    by = &quot;pol_id&quot;
+  ) %&gt;%
+  mutate(
+    claimcount = coalesce(claimcount, 0)
+  )
+
+Run Model ####
+
+mv_model_fit =
+  brms_freq_sev(
+
+    freq_formula =
+      bf(claimcount ~ 1 + region),
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1 + region,
+         sigma ~ 1 + region
+      ),
+
+    freq_family = poisson(),
+    sev_family = lognormal(),
+
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+
+               prior(normal(0, 1),
+                     class = b,
+                     resp = claimcount),
+
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
+
+               prior(lognormal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
+                     resp = loss),
+
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = sigma,
+                     resp = loss)
+    ),
+
+    ded_name = &quot;ded&quot;,
+
+    chains = 1,
+    iter = 1000,
+    warmup = 250,
+    refresh = 50,
+    control =
+      list(adapt_delta = 0.999,
+           max_treedepth = 15)
+  )
+</code></pre>
+
+</div>
 </div>
 </div>
             </section>
