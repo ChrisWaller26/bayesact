@@ -111,6 +111,8 @@ It also has the potential to create a lot more consistency across the industry a
 
 ## The `brms_freq_sev` function
 
+### How it works
+
 The `brms_freq_sev` function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.
 
 In mathematical notation, assuming "net" refers to "net of deductibles and capping at limits":
@@ -128,3 +130,313 @@ $$N = \mbox{ frequency distribution}$$
 $$d_i = \mbox{ deductible for policy } i$$
 
 $$\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i$$
+
+### How to use it
+
+Using the `brms_freq_sev` function is very similar to defining a standard BRMS model, but with the frequency and severity BRMS formulae and their distributions specified separately.
+
+#### Usage
+
+```
+brms_freq_sev =
+  function(
+    freq_formula,
+    sev_formula,
+    freq_family,
+    sev_family,
+    freq_data,
+    sev_data,
+    priors,
+    ded_name = "ded",
+    freq_adj_fun = NULL,
+    ...
+  )
+```
+
+#### Arguments
+
+##### freq_formula
+
+Class: BRMS Formula 
+
+Description: Linear/Non-linear formula for frequency model
+
+Example: 
+
+```
+bf(claimcount ~ f1 + expo ^ f2,
+    f1 ~ 1 + region,
+    f2 ~ 1,
+    nl = TRUE)
+```
+
+
+##### sev_formula 
+
+Class: BRMS Formula 
+
+Description: Linear/Non-linear formula for severity model
+
+Example: 
+
+```
+bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 1 + region + s(expo),
+   sigma ~ 1 + region)
+```
+
+##### freq_family  
+
+Class: Family 
+
+Description: Family for frequency model
+
+Example: `poisson()`
+
+
+##### sev_family  
+
+Class: Family 
+
+Description: Family for severity model
+
+Example: `lognormal()`
+
+##### freq_data    
+
+Class: Data Frame 
+
+Description: The data required for the frequency model. Must contain a column named `ded_name` (described below).
+
+##### sev_data   
+
+Class: Data Frame
+
+Description: The data required for the severity model
+
+##### priors
+
+Class: BRMS Prior
+
+Description: The set of priors for both the frequency and severity models
+
+Example:
+
+```
+
+c(prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f2),
+               
+  prior(normal(8, 1),
+        class = Intercept,
+        resp = loss)
+        )
+
+```
+
+##### ded_name
+
+Class: Character
+
+Description: The column name for the deductible/excess/attachment point in the frequency data.
+
+##### freq_adj_fun
+
+Class: Character
+
+Description: The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used. This could be useful, say, if you want to limit the adjustment the deductible has on the frequency.
+
+Example:
+
+```
+"fmax(0.2, 1 - lognormal_cdf(ded[n], mu_loss[n], sigma_loss[n]))"
+
+```
+
+##### ...
+
+Description: These can be any parameter which the standard `brm` function accepts.
+
+Example:
+
+```
+chains = 2,
+iter = 1000,
+warmup = 250,
+control = list(max_treedepth = 15)
+```
+
+### Example
+
+```
+Simulate Frequency Data ####
+
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
+
+#' Assuming one rating factor: region.
+
+set.seed(123456)
+
+# Region Names
+
+regions = c("EMEA", "USC")
+
+# Number of frequency samples
+
+freq_n = 5e3
+
+# Defines a function for lambda
+
+freq_lambda = exp(c(EMEA = 0.5, USC = 1))
+
+# Generate samples for ground-up frequency data
+
+freq_data =
+  data.frame(
+    pol_id =  seq(freq_n),
+    ded = runif(freq_n, 1e3, 5e3),
+    lim = runif(freq_n, 50e3, 100e3),
+    region = sample(regions, freq_n, replace = T)
+  ) %>%
+  mutate(
+    freq_lambda = freq_lambda[region],
+    claimcount_fgu =
+      rpois(freq_n, freq_lambda)
+  )
+
+Simulate severity Data ####
+
+mu_vec = c(EMEA = 8, USC = 9)
+sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+sev_data =
+  data.frame(
+    ded = rep(freq_data$ded,
+              freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
+    region = rep(freq_data$region,
+                 freq_data$claimcount_fgu)
+  ) %>%
+  mutate(
+    loss_uncapped =
+      unlist(
+        lapply(
+          seq(freq_n),
+          function(i){
+
+            rlnorm(freq_data$claimcount_fgu[i],
+                   mu_vec[freq_data$region[i]],
+                   sigma_vec[freq_data$region[i]]
+            )
+
+          }
+        )
+      )
+  ) %>%
+  mutate(
+    pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
+  ) %>%
+  filter(
+    loss_uncapped > ded
+  ) %>%
+  mutate(
+    claim_id = row_number(),
+    lim_exceed = as.integer(loss_uncapped >= lim),
+    loss = pmin(loss_uncapped, lim)
+  )
+
+# Frequency data filtered for losses below the deductible
+
+freq_data_net =
+  freq_data %>%
+  left_join(
+    sev_data %>%
+      group_by(
+        pol_id
+      ) %>%
+      summarise(
+        claimcount = n()
+      ) %>%
+      ungroup(),
+    by = "pol_id"
+  ) %>%
+  mutate(
+    claimcount = coalesce(claimcount, 0)
+  )
+
+Run Model ####
+
+mv_model_fit =
+  brms_freq_sev(
+
+    freq_formula =
+      bf(claimcount ~ 1 + region),
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1 + region,
+         sigma ~ 1 + region
+      ),
+
+    freq_family = poisson(),
+    sev_family = lognormal(),
+
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+
+               prior(normal(0, 1),
+                     class = b,
+                     resp = claimcount),
+
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
+
+               prior(lognormal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
+                     resp = loss),
+
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = sigma,
+                     resp = loss)
+    ),
+
+    ded_name = "ded",
+
+    chains = 1,
+    iter = 1000,
+    warmup = 250,
+    refresh = 50,
+    control =
+      list(adapt_delta = 0.999,
+           max_treedepth = 15)
+  )
+
+```
+
+### Assessing the Output
+
+The parameters output by the `brms_freq_sev` function relate to the ground-up frequency and severity (i.e. assuming a deductible of zero). For example, if the frequency follows a Poisson($\lambda$) distribution, then $\lambda$ is unadjusted for left-censoring at the deductibles, so if the user wishes to compare the model predictions against the actual data, they would need to adjust their predictions by the severity distribution at the deductible for each policy.
+
+#### Example

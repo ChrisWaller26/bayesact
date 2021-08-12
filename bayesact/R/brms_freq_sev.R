@@ -16,7 +16,7 @@
 #' @param sev_data     Data Frame; The data required for the severity model
 #' @param priors       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
-#' @param freq_adj_fun Character; The Stan function to adjust the frequency mean by. If NULL, the survival function of the severity model at the deductible will be used.
+#' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -227,7 +227,6 @@ brms_freq_sev =
     priors,
     ded_name = "ded",
     freq_adj_fun = NULL,
-    stanvars = stanvar(x = 0, name = "dummy_default_stanvar"),
     ...
   ){
 
@@ -290,6 +289,12 @@ brms_freq_sev =
 
     }
 
+    if(is.null(stanvars)){
+
+      stanvars = stanvar(x = 0, name = "dummy_default_stanvar")
+
+    }
+
     #### Multivariate Model ####
 
     sev_dist =
@@ -307,6 +312,34 @@ brms_freq_sev =
 
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
+
+    # Add censoring, if not present
+
+    if(!grepl("cens", as.character(sev_formula$formula[2]))){
+
+      cens_operator =
+        case_when(
+          grepl("|",
+                as.character(sev_formula$formula[2]),
+                fixed = TRUE) ~ "+",
+          TRUE ~ "|"
+        )
+
+      sev_formula =
+        bf(
+          as.formula(
+            paste(as.character(sev_formula$formula[2]),
+                  cens_operator,
+                  "cens(no_censoring) ~")
+          ),
+          as.formula(
+            as.character(sev_formula$formula[3])
+          ),
+          sev_formula$pforms,
+          nl = TRUE
+        )
+
+    }
 
     ## Add additional parameter terms, if missing
 
