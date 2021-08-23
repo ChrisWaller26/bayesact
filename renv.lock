@@ -142,6 +142,14 @@
       "Repository": "CRAN",
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
     },
+    "bayesact": {
+      "Package": "bayesact",
+      "Version": "0.0.3",
+      "Source": "Local",
+      "RemoteType": "local",
+      "RemoteUrl": "D:/Git/brms_freq_sev/bayesact_0.0.3.tar.gz",
+      "Hash": "715f2d3816229e983ed7bb27175e32f1"
+    },
     "bayesplot": {
       "Package": "bayesplot",
       "Version": "1.8.1",
@@ -155,6 +163,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "9addc7e2c5954eca5719928131fed98c"
+    },
+    "bookdown": {
+      "Package": "bookdown",
+      "Version": "0.22",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8fb0b67dfdf9d751fc93cb0036def3cc"
     },
     "boot": {
       "Package": "boot",

@@ -77,7 +77,7 @@
 
 \title{The Bayesian Actuarial Package}
 \author{Chris Waller and Zongwen Tan}
-\date{2021-08-03}
+\date{2021-08-12}
 
 \begin{document}
 \maketitle
@@ -107,6 +107,462 @@ He is currently studying Japanese and is working towards taking the Japanese Lan
 
 \hypertarget{zongwen-tan}{%
 \section{Zongwen Tan}\label{zongwen-tan}}
+
+\hypertarget{frequency-severity-modelling}{%
+\chapter{Frequency-Severity Modelling}\label{frequency-severity-modelling}}
+
+\hypertarget{an-overview-of-bayesian-frequency-severity-modelling}{%
+\section{An overview of Bayesian frequency-severity modelling}\label{an-overview-of-bayesian-frequency-severity-modelling}}
+
+\hypertarget{introduction}{%
+\subsection{Introduction}\label{introduction}}
+
+In the world of insurance, there are a vast array of different lines of business that can be written - all of which can have very different and complex policy and claim structures. As a consequence, different lines of business may require vastly different modelling approaches (different rating factors, use of splines, linear vs non-linear relationships between covariates etc.).
+
+The ultimate goal of any actuary or data scientist when developing a predictive insurance model is to actually predict future claims experience and/or loss development, with a clear, numerical understanding of the uncertainty around these predictions. Achieving this with traditional frequentist methods requires a number of potentially significant implicit assumptions to be made about the distribution of the parameters that form part of the model.
+
+Adopting a Bayesian approach allows the modeller to better understand the uncertainty around their parameter estimates, as well as being able to embed prior knowledge into their calculation to create reasonable predictions - even when good quality data may be scarce.
+
+\hypertarget{the-standard-frequency-severity-model}{%
+\subsection{The standard frequency-severity model}\label{the-standard-frequency-severity-model}}
+
+It is commonplace in most insurance pricing and reserving models to separate frequency (the number of claims) and severity (the magnitude of a loss, given there is a one) when fitting a model. This is because they are often driven by quite different phenomena, with different trends, risk factors and loss development patterns. In mathematical notation, we would write this as:
+
+\[S = \sum_{i=1}^{N} X_i\]
+
+where:
+
+\[S = \mbox{Aggregate loss}\]
+\[N = \mbox{Number of losses}\]
+\[X_i = \mbox{Severity of } i \mbox{th loss}\]
+
+If all \(X_i\) are assumed to be independent and identically distributed, as well as being independent of the distribution of the number of losses, \(N\), then we can fit these models separately using whatever methods we deem fit and then take samples from them, as required.
+
+This approach is the bread-and-butter for insurance pricing modelling, as it is easy to understand, straightforward to create and not overly computer power-intensive.
+
+\hypertarget{whats-wrong-with-the-standard-approach}{%
+\subsection{What's wrong with the standard approach?}\label{whats-wrong-with-the-standard-approach}}
+
+Even if a Bayesian approach is taken to fitting the frequency and severity models, the standard approach does have some very key flaws when modelling a typical book of insurance.
+
+Most insurance policies have some form of deductible, excess or attachment point which removes a company's exposure to very small, attritional losses. In general, losses below this deductible will go unreported, therefore resulting in he severity data being left-truncated.
+
+Moreover, the frequency data set will be impacted, as (all other things being equal) claim counts will be lower if deductibles are higher.
+
+So why is this an issue? Mainly that, given that only the losses above the deductible end up in the severity data (assuming no net zero losses are reported) and that the claim counts in the frequency data are lower when deductibles are higher, then the severity and frequency distribution are not independent, as we first assumed.
+
+In other words, if we have a policy for which the ground-up losses (i.e.~losses assuming no deductible) have a cumulative density function \(F\) and an expected annual ground-up claim count \(\lambda\) then, given the policy has a deductible \(D\):
+
+\[\lambda^* = \lambda \cdot (1-F(D))\]
+where \(\lambda^*\) is the average claim count, net of deductible.
+
+A further complication can be that \(D\) may vary on a policy-by-policy basis, so it may not be appropriate or possible to just model \(\lambda^*\) directly.
+
+\hypertarget{overcoming-the-dependance-issue}{%
+\subsection{Overcoming the dependance issue}\label{overcoming-the-dependance-issue}}
+
+One of the many great things about the Stan modelling language is that it allows one to optimise their model fitting using likelihoods which could vary on a policy-by-policy basis.
+
+For example, if we create a LogNormal-Poisson model using Stan and we want to deal with this left-censoring issue, we could loop through all the data points and adjust lambda by the survival function of the severity at the deductible for that data point:
+
+\begin{verbatim}
+data{
+  int N_freq;              // Number of rows in frequency data
+  int claim_count[N_freq]; // Observed claim counts
+  vector[N_freq] D_freq;   // Deductibles from frequency data
+  int N_sev;           // Number of rows in severity data
+  vector[N_sev] loss;  // Size of loss 
+  vector[N_sev] D_sev; // Deductibles from severity data
+}
+parameters{
+  real mu;
+  real <lower=0> sigma;
+  real <lower=0> lambda;
+}
+model{
+  for(i in 1:N_sev){
+    target += lognormal_lpdf(loss[i] | mu, sigma) -
+      lognormal_lccdf(D_sev[i] | mu, sigma)
+  }
+  for(i in 1:N_freq){
+    real lambda_i;
+    lambda_i = lambda * (1 - lognormal_cdf(D_freq[i], mu, sigma));
+    target += poisson_lpmf(claim_count[i] | lambda_i);
+  }
+}
+\end{verbatim}
+
+This method works well when the parameters are constants, but it becomes increasingly more complex when trying to implement additional features like rating factors, splines and non-linear relationships between covariates.
+
+\hypertarget{why-use-brms}{%
+\section{Why use BRMS?}\label{why-use-brms}}
+
+One of the beauties of the BRMS package is that it allows one to create quite sophisticated Bayesian Stan models, while still uses simple R formulae syntax.
+
+An in-depth guide to all that BRMS has to offer can be found here: \url{https://paul-buerkner.github.io/brms/}.
+
+In a nutshell, BRMS gives the user the option to easily create single- or multi-variate Bayesian models which can implement rating factors, splines, truncation, censoring, allowances for missing data and much more.
+
+Given how much BRMS can do out of the box, common sense dictates that it be used as a basis for this package - rather than recreating a huge amount of functionality which already exists in an easy-to-use and robust form.
+
+\hypertarget{why-create-this-package-in-the-first-place}{%
+\section{Why create this package in the first place?}\label{why-create-this-package-in-the-first-place}}
+
+\hypertarget{limitations-of-brms}{%
+\subsection{Limitations of BRMS}\label{limitations-of-brms}}
+
+Due to BRMS being so flexible and being able to create such a plethora of different models as is, one might think there is little need to create a new package in the first place.
+
+Though this is largely the case, BRMS does not (at the time of writing) easily allow one to use parameters which model one response variable and apply them to another response variable.
+
+Interactions between responses can be included in a multi-variate model but, for the purposes of this specific process, we cannot explicitly adjust the frequency response as we require without a bit of hacking, some knowledge of Stan and a fair amount of trial-and-error.
+
+\hypertarget{the-goal-of-this-package}{%
+\subsection{The goal of this package}\label{the-goal-of-this-package}}
+
+At a high level, the goal of this package is to allow one to easily create flexible Bayesian models which are specifically targeted towards actuaries and data scientists working in the field of insurance.
+
+Much of what has been discussed already are problems that hundreds of pricing and reserving actuaries have had to deal with and many of which have come up with their own solutions or workarounds after a lot of work and time which could have been better utilised elsewhere.
+
+Creating a package such as this can allow a much larger group of people to create useful Bayesian insurance models easily, with most of the heavy-lifting done for them already.
+
+It also has the potential to create a lot more consistency across the industry and move on from the Wild West of insurance modelling that is still quite prevalent within small, medium and large businesses alike.
+
+\hypertarget{the-brms_freq_sev-function}{%
+\section{\texorpdfstring{The \texttt{brms\_freq\_sev} function}{The brms\_freq\_sev function}}\label{the-brms_freq_sev-function}}
+
+\hypertarget{how-it-works}{%
+\subsection{How it works}\label{how-it-works}}
+
+The \texttt{brms\_freq\_sev} function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.
+
+In mathematical notation, assuming ``net'' refers to ``net of deductibles and capping at limits'':
+
+\[S = \sum_{i=1}^K\sum_{j=1}^{N_i}X_{ij}\]
+\[N_i \sim N(\lambda_i \cdot (1-F_i(d_i)), ...)\]
+\[S = \mbox{Aggregate net loss across all policies}\]
+\[X_{ij} = \mbox{Size of } j \mbox{th loss for policy } i\]
+\[N_i = \mbox{Number of net claims for policy } i\]
+\[K = \mbox{Total number of policies}\]
+\[F_{i} = \mbox{ Cumulative density function for severity of policy } i\]
+
+\[N = \mbox{ frequency distribution}\]
+
+\[d_i = \mbox{ deductible for policy } i\]
+
+\[\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i\]
+
+\hypertarget{how-to-use-it}{%
+\subsection{How to use it}\label{how-to-use-it}}
+
+Using the \texttt{brms\_freq\_sev} function is very similar to defining a standard BRMS model, but with the frequency and severity BRMS formulae and their distributions specified separately.
+
+\hypertarget{usage}{%
+\subsubsection{Usage}\label{usage}}
+
+\begin{verbatim}
+brms_freq_sev =
+  function(
+    freq_formula,
+    sev_formula,
+    freq_family,
+    sev_family,
+    freq_data,
+    sev_data,
+    priors,
+    ded_name = "ded",
+    freq_adj_fun = NULL,
+    ...
+  )
+\end{verbatim}
+
+\hypertarget{arguments}{%
+\subsubsection{Arguments}\label{arguments}}
+
+\hypertarget{freq_formula}{%
+\paragraph{freq\_formula}\label{freq_formula}}
+
+Class: BRMS Formula
+
+Description: Linear/Non-linear formula for frequency model
+
+Example:
+
+\begin{verbatim}
+bf(claimcount ~ f1 + expo ^ f2,
+    f1 ~ 1 + region,
+    f2 ~ 1,
+    nl = TRUE)
+\end{verbatim}
+
+\hypertarget{sev_formula}{%
+\paragraph{sev\_formula}\label{sev_formula}}
+
+Class: BRMS Formula
+
+Description: Linear/Non-linear formula for severity model
+
+Example:
+
+\begin{verbatim}
+bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 1 + region + s(expo),
+   sigma ~ 1 + region)
+\end{verbatim}
+
+\hypertarget{freq_family}{%
+\paragraph{freq\_family}\label{freq_family}}
+
+Class: Family
+
+Description: Family for frequency model
+
+Example: \texttt{poisson()}
+
+\hypertarget{sev_family}{%
+\paragraph{sev\_family}\label{sev_family}}
+
+Class: Family
+
+Description: Family for severity model
+
+Example: \texttt{lognormal()}
+
+\hypertarget{freq_data}{%
+\paragraph{freq\_data}\label{freq_data}}
+
+Class: Data Frame
+
+Description: The data required for the frequency model. Must contain a column named \texttt{ded\_name} (described below).
+
+\hypertarget{sev_data}{%
+\paragraph{sev\_data}\label{sev_data}}
+
+Class: Data Frame
+
+Description: The data required for the severity model
+
+\hypertarget{priors}{%
+\paragraph{priors}\label{priors}}
+
+Class: BRMS Prior
+
+Description: The set of priors for both the frequency and severity models
+
+Example:
+
+\begin{verbatim}
+c(prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f2),
+               
+  prior(normal(8, 1),
+        class = Intercept,
+        resp = loss)
+        )
+\end{verbatim}
+
+\hypertarget{ded_name}{%
+\paragraph{ded\_name}\label{ded_name}}
+
+Class: Character
+
+Description: The column name for the deductible/excess/attachment point in the frequency data.
+
+\hypertarget{freq_adj_fun}{%
+\paragraph{freq\_adj\_fun}\label{freq_adj_fun}}
+
+Class: Character
+
+Description: The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used. This could be useful, say, if you want to limit the adjustment the deductible has on the frequency.
+
+Example:
+
+\begin{verbatim}
+"fmax(0.2, 1 - lognormal_cdf(ded[n], mu_loss[n], sigma_loss[n]))"
+\end{verbatim}
+
+\hypertarget{section}{%
+\paragraph{\ldots{}}\label{section}}
+
+Description: These can be any parameter which the standard \texttt{brm} function accepts.
+
+Example:
+
+\begin{verbatim}
+chains = 2,
+iter = 1000,
+warmup = 250,
+control = list(max_treedepth = 15)
+\end{verbatim}
+
+\hypertarget{example}{%
+\subsection{Example}\label{example}}
+
+\begin{verbatim}
+Simulate Frequency Data ####
+
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
+
+#' Assuming one rating factor: region.
+
+set.seed(123456)
+
+# Region Names
+
+regions = c("EMEA", "USC")
+
+# Number of frequency samples
+
+freq_n = 5e3
+
+# Defines a function for lambda
+
+freq_lambda = exp(c(EMEA = 0.5, USC = 1))
+
+# Generate samples for ground-up frequency data
+
+freq_data =
+  data.frame(
+    pol_id =  seq(freq_n),
+    ded = runif(freq_n, 1e3, 5e3),
+    lim = runif(freq_n, 50e3, 100e3),
+    region = sample(regions, freq_n, replace = T)
+  ) %>%
+  mutate(
+    freq_lambda = freq_lambda[region],
+    claimcount_fgu =
+      rpois(freq_n, freq_lambda)
+  )
+
+Simulate severity Data ####
+
+mu_vec = c(EMEA = 8, USC = 9)
+sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+sev_data =
+  data.frame(
+    ded = rep(freq_data$ded,
+              freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
+    region = rep(freq_data$region,
+                 freq_data$claimcount_fgu)
+  ) %>%
+  mutate(
+    loss_uncapped =
+      unlist(
+        lapply(
+          seq(freq_n),
+          function(i){
+
+            rlnorm(freq_data$claimcount_fgu[i],
+                   mu_vec[freq_data$region[i]],
+                   sigma_vec[freq_data$region[i]]
+            )
+
+          }
+        )
+      )
+  ) %>%
+  mutate(
+    pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
+  ) %>%
+  filter(
+    loss_uncapped > ded
+  ) %>%
+  mutate(
+    claim_id = row_number(),
+    lim_exceed = as.integer(loss_uncapped >= lim),
+    loss = pmin(loss_uncapped, lim)
+  )
+
+# Frequency data filtered for losses below the deductible
+
+freq_data_net =
+  freq_data %>%
+  left_join(
+    sev_data %>%
+      group_by(
+        pol_id
+      ) %>%
+      summarise(
+        claimcount = n()
+      ) %>%
+      ungroup(),
+    by = "pol_id"
+  ) %>%
+  mutate(
+    claimcount = coalesce(claimcount, 0)
+  )
+
+Run Model ####
+
+mv_model_fit =
+  brms_freq_sev(
+
+    freq_formula =
+      bf(claimcount ~ 1 + region),
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1 + region,
+         sigma ~ 1 + region
+      ),
+
+    freq_family = poisson(),
+    sev_family = lognormal(),
+
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+
+               prior(normal(0, 1),
+                     class = b,
+                     resp = claimcount),
+
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
+
+               prior(lognormal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
+                     resp = loss),
+
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = sigma,
+                     resp = loss)
+    ),
+
+    ded_name = "ded",
+
+    chains = 1,
+    iter = 1000,
+    warmup = 250,
+    refresh = 50,
+    control =
+      list(adapt_delta = 0.999,
+           max_treedepth = 15)
+  )
+\end{verbatim}
 
   \bibliography{book.bib,packages.bib}
 
