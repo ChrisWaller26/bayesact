@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Chapter 3 Frequency-Severity Modelling | The Bayesian Actuarial Package</title>
+  <meta name="description" content="This is an R package designed to apply the amazing functionality of the BRMS (Bayesian Regression Modelling in Stan) to create flexible functions directly applicable to solving problems in actuarial Bayesian model development." />
+  <meta name="generator" content="bookdown 0.22 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="Chapter 3 Frequency-Severity Modelling | The Bayesian Actuarial Package" />
+  <meta property="og:type" content="book" />
+  
+  
+  <meta property="og:description" content="This is an R package designed to apply the amazing functionality of the BRMS (Bayesian Regression Modelling in Stan) to create flexible functions directly applicable to solving problems in actuarial Bayesian model development." />
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Chapter 3 Frequency-Severity Modelling | The Bayesian Actuarial Package" />
+  
+  <meta name="twitter:description" content="This is an R package designed to apply the amazing functionality of the BRMS (Bayesian Regression Modelling in Stan) to create flexible functions directly applicable to solving problems in actuarial Bayesian model development." />
+  
+
+<meta name="author" content="Chris Waller and Zongwen Tan" />
+
+
+<meta name="date" content="2021-08-12" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="about-the-authors.html"/>
+
+<script src="libs/header-attrs-2.7/header-attrs.js"></script>
+<script src="libs/jquery-2.2.3/jquery.min.js"></script>
+<link href="libs/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="libs/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+
+<link href="libs/anchor-sections-1.0.1/anchor-sections.css" rel="stylesheet" />
+<script src="libs/anchor-sections-1.0.1/anchor-sections.js"></script>
+
+
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li><a href="./">A Minimal Book Example</a></li>
+
+<li class="divider"></li>
+<li class="chapter" data-level="1" data-path="index.html"><a href="index.html"><i class="fa fa-check"></i><b>1</b> Preface</a></li>
+<li class="chapter" data-level="2" data-path="about-the-authors.html"><a href="about-the-authors.html"><i class="fa fa-check"></i><b>2</b> About the authors</a>
+<ul>
+<li class="chapter" data-level="2.1" data-path="about-the-authors.html"><a href="about-the-authors.html#chris-waller"><i class="fa fa-check"></i><b>2.1</b> Chris Waller</a></li>
+<li class="chapter" data-level="2.2" data-path="about-the-authors.html"><a href="about-the-authors.html#zongwen-tan"><i class="fa fa-check"></i><b>2.2</b> Zongwen Tan</a></li>
+</ul></li>
+<li class="chapter" data-level="3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html"><i class="fa fa-check"></i><b>3</b> Frequency-Severity Modelling</a>
+<ul>
+<li class="chapter" data-level="3.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#an-overview-of-bayesian-frequency-severity-modelling"><i class="fa fa-check"></i><b>3.1</b> An overview of Bayesian frequency-severity modelling</a>
+<ul>
+<li class="chapter" data-level="3.1.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#introduction"><i class="fa fa-check"></i><b>3.1.1</b> Introduction</a></li>
+<li class="chapter" data-level="3.1.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-standard-frequency-severity-model"><i class="fa fa-check"></i><b>3.1.2</b> The standard frequency-severity model</a></li>
+<li class="chapter" data-level="3.1.3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#whats-wrong-with-the-standard-approach"><i class="fa fa-check"></i><b>3.1.3</b> What’s wrong with the standard approach?</a></li>
+<li class="chapter" data-level="3.1.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#overcoming-the-dependance-issue"><i class="fa fa-check"></i><b>3.1.4</b> Overcoming the dependance issue</a></li>
+</ul></li>
+<li class="chapter" data-level="3.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#why-use-brms"><i class="fa fa-check"></i><b>3.2</b> Why use BRMS?</a></li>
+<li class="chapter" data-level="3.3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#why-create-this-package-in-the-first-place"><i class="fa fa-check"></i><b>3.3</b> Why create this package in the first place?</a>
+<ul>
+<li class="chapter" data-level="3.3.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#limitations-of-brms"><i class="fa fa-check"></i><b>3.3.1</b> Limitations of BRMS</a></li>
+<li class="chapter" data-level="3.3.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-goal-of-this-package"><i class="fa fa-check"></i><b>3.3.2</b> The goal of this package</a></li>
+</ul></li>
+<li class="chapter" data-level="3.4" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#the-brms_freq_sev-function"><i class="fa fa-check"></i><b>3.4</b> The <code>brms_freq_sev</code> function</a>
+<ul>
+<li class="chapter" data-level="3.4.1" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#how-it-works"><i class="fa fa-check"></i><b>3.4.1</b> How it works</a></li>
+<li class="chapter" data-level="3.4.2" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#how-to-use-it"><i class="fa fa-check"></i><b>3.4.2</b> How to use it</a></li>
+<li class="chapter" data-level="3.4.3" data-path="frequency-severity-modelling.html"><a href="frequency-severity-modelling.html#example"><i class="fa fa-check"></i><b>3.4.3</b> Example</a></li>
+</ul></li>
+</ul></li>
+<li class="divider"></li>
+<li><a href="https://github.com/rstudio/bookdown" target="blank">Published with bookdown</a></li>
+
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">The Bayesian Actuarial Package</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="frequency-severity-modelling" class="section level1" number="3">
+<h1><span class="header-section-number">Chapter 3</span> Frequency-Severity Modelling</h1>
+<div id="an-overview-of-bayesian-frequency-severity-modelling" class="section level2" number="3.1">
+<h2><span class="header-section-number">3.1</span> An overview of Bayesian frequency-severity modelling</h2>
+<div id="introduction" class="section level3" number="3.1.1">
+<h3><span class="header-section-number">3.1.1</span> Introduction</h3>
+<p>In the world of insurance, there are a vast array of different lines of business that can be written - all of which can have very different and complex policy and claim structures. As a consequence, different lines of business may require vastly different modelling approaches (different rating factors, use of splines, linear vs non-linear relationships between covariates etc.).</p>
+<p>The ultimate goal of any actuary or data scientist when developing a predictive insurance model is to actually predict future claims experience and/or loss development, with a clear, numerical understanding of the uncertainty around these predictions. Achieving this with traditional frequentist methods requires a number of potentially significant implicit assumptions to be made about the distribution of the parameters that form part of the model.</p>
+<p>Adopting a Bayesian approach allows the modeller to better understand the uncertainty around their parameter estimates, as well as being able to embed prior knowledge into their calculation to create reasonable predictions - even when good quality data may be scarce.</p>
+</div>
+<div id="the-standard-frequency-severity-model" class="section level3" number="3.1.2">
+<h3><span class="header-section-number">3.1.2</span> The standard frequency-severity model</h3>
+<p>It is commonplace in most insurance pricing and reserving models to separate frequency (the number of claims) and severity (the magnitude of a loss, given there is a one) when fitting a model. This is because they are often driven by quite different phenomena, with different trends, risk factors and loss development patterns. In mathematical notation, we would write this as:</p>
+<p><span class="math display">\[S = \sum_{i=1}^{N} X_i\]</span></p>
+<p>where:</p>
+<p><span class="math display">\[S = \mbox{Aggregate loss}\]</span>
+<span class="math display">\[N = \mbox{Number of losses}\]</span>
+<span class="math display">\[X_i = \mbox{Severity of } i \mbox{th loss}\]</span></p>
+<p>If all <span class="math inline">\(X_i\)</span> are assumed to be independent and identically distributed, as well as being independent of the distribution of the number of losses, <span class="math inline">\(N\)</span>, then we can fit these models separately using whatever methods we deem fit and then take samples from them, as required.</p>
+<p>This approach is the bread-and-butter for insurance pricing modelling, as it is easy to understand, straightforward to create and not overly computer power-intensive.</p>
+</div>
+<div id="whats-wrong-with-the-standard-approach" class="section level3" number="3.1.3">
+<h3><span class="header-section-number">3.1.3</span> What’s wrong with the standard approach?</h3>
+<p>Even if a Bayesian approach is taken to fitting the frequency and severity models, the standard approach does have some very key flaws when modelling a typical book of insurance.</p>
+<p>Most insurance policies have some form of deductible, excess or attachment point which removes a company’s exposure to very small, attritional losses. In general, losses below this deductible will go unreported, therefore resulting in he severity data being left-truncated.</p>
+<p>Moreover, the frequency data set will be impacted, as (all other things being equal) claim counts will be lower if deductibles are higher.</p>
+<p>So why is this an issue? Mainly that, given that only the losses above the deductible end up in the severity data (assuming no net zero losses are reported) and that the claim counts in the frequency data are lower when deductibles are higher, then the severity and frequency distribution are not independent, as we first assumed.</p>
+<p>In other words, if we have a policy for which the ground-up losses (i.e. losses assuming no deductible) have a cumulative density function <span class="math inline">\(F\)</span> and an expected annual ground-up claim count <span class="math inline">\(\lambda\)</span> then, given the policy has a deductible <span class="math inline">\(D\)</span>:</p>
+<p><span class="math display">\[\lambda^* = \lambda \cdot (1-F(D))\]</span>
+where <span class="math inline">\(\lambda^*\)</span> is the average claim count, net of deductible.</p>
+<p>A further complication can be that <span class="math inline">\(D\)</span> may vary on a policy-by-policy basis, so it may not be appropriate or possible to just model <span class="math inline">\(\lambda^*\)</span> directly.</p>
+</div>
+<div id="overcoming-the-dependance-issue" class="section level3" number="3.1.4">
+<h3><span class="header-section-number">3.1.4</span> Overcoming the dependance issue</h3>
+<p>One of the many great things about the Stan modelling language is that it allows one to optimise their model fitting using likelihoods which could vary on a policy-by-policy basis.</p>
+<p>For example, if we create a LogNormal-Poisson model using Stan and we want to deal with this left-censoring issue, we could loop through all the data points and adjust lambda by the survival function of the severity at the deductible for that data point:</p>
+<pre><code>data{
+  int N_freq;              // Number of rows in frequency data
+  int claim_count[N_freq]; // Observed claim counts
+  vector[N_freq] D_freq;   // Deductibles from frequency data
+  int N_sev;           // Number of rows in severity data
+  vector[N_sev] loss;  // Size of loss 
+  vector[N_sev] D_sev; // Deductibles from severity data
+}
+parameters{
+  real mu;
+  real &lt;lower=0&gt; sigma;
+  real &lt;lower=0&gt; lambda;
+}
+model{
+  for(i in 1:N_sev){
+    target += lognormal_lpdf(loss[i] | mu, sigma) -
+      lognormal_lccdf(D_sev[i] | mu, sigma)
+  }
+  for(i in 1:N_freq){
+    real lambda_i;
+    lambda_i = lambda * (1 - lognormal_cdf(D_freq[i], mu, sigma));
+    target += poisson_lpmf(claim_count[i] | lambda_i);
+  }
+}</code></pre>
+<p>This method works well when the parameters are constants, but it becomes increasingly more complex when trying to implement additional features like rating factors, splines and non-linear relationships between covariates.</p>
+</div>
+</div>
+<div id="why-use-brms" class="section level2" number="3.2">
+<h2><span class="header-section-number">3.2</span> Why use BRMS?</h2>
+<p>One of the beauties of the BRMS package is that it allows one to create quite sophisticated Bayesian Stan models, while still uses simple R formulae syntax.</p>
+<p>An in-depth guide to all that BRMS has to offer can be found here: <a href="https://paul-buerkner.github.io/brms/" class="uri">https://paul-buerkner.github.io/brms/</a>.</p>
+<p>In a nutshell, BRMS gives the user the option to easily create single- or multi-variate Bayesian models which can implement rating factors, splines, truncation, censoring, allowances for missing data and much more.</p>
+<p>Given how much BRMS can do out of the box, common sense dictates that it be used as a basis for this package - rather than recreating a huge amount of functionality which already exists in an easy-to-use and robust form.</p>
+</div>
+<div id="why-create-this-package-in-the-first-place" class="section level2" number="3.3">
+<h2><span class="header-section-number">3.3</span> Why create this package in the first place?</h2>
+<div id="limitations-of-brms" class="section level3" number="3.3.1">
+<h3><span class="header-section-number">3.3.1</span> Limitations of BRMS</h3>
+<p>Due to BRMS being so flexible and being able to create such a plethora of different models as is, one might think there is little need to create a new package in the first place.</p>
+<p>Though this is largely the case, BRMS does not (at the time of writing) easily allow one to use parameters which model one response variable and apply them to another response variable.</p>
+<p>Interactions between responses can be included in a multi-variate model but, for the purposes of this specific process, we cannot explicitly adjust the frequency response as we require without a bit of hacking, some knowledge of Stan and a fair amount of trial-and-error.</p>
+</div>
+<div id="the-goal-of-this-package" class="section level3" number="3.3.2">
+<h3><span class="header-section-number">3.3.2</span> The goal of this package</h3>
+<p>At a high level, the goal of this package is to allow one to easily create flexible Bayesian models which are specifically targeted towards actuaries and data scientists working in the field of insurance.</p>
+<p>Much of what has been discussed already are problems that hundreds of pricing and reserving actuaries have had to deal with and many of which have come up with their own solutions or workarounds after a lot of work and time which could have been better utilised elsewhere.</p>
+<p>Creating a package such as this can allow a much larger group of people to create useful Bayesian insurance models easily, with most of the heavy-lifting done for them already.</p>
+<p>It also has the potential to create a lot more consistency across the industry and move on from the Wild West of insurance modelling that is still quite prevalent within small, medium and large businesses alike.</p>
+</div>
+</div>
+<div id="the-brms_freq_sev-function" class="section level2" number="3.4">
+<h2><span class="header-section-number">3.4</span> The <code>brms_freq_sev</code> function</h2>
+<div id="how-it-works" class="section level3" number="3.4.1">
+<h3><span class="header-section-number">3.4.1</span> How it works</h3>
+<p>The <code>brms_freq_sev</code> function developed for this package creates a very simple structure for defining a combined frequency-severity model which adjusts the frequency by multiplying the mean frequency by the survival function of the deductible for the given data point.</p>
+<p>In mathematical notation, assuming “net” refers to “net of deductibles and capping at limits”:</p>
+<p><span class="math display">\[S = \sum_{i=1}^K\sum_{j=1}^{N_i}X_{ij}\]</span>
+<span class="math display">\[N_i \sim N(\lambda_i \cdot (1-F_i(d_i)), ...)\]</span>
+<span class="math display">\[S = \mbox{Aggregate net loss across all policies}\]</span>
+<span class="math display">\[X_{ij} = \mbox{Size of } j \mbox{th loss for policy } i\]</span>
+<span class="math display">\[N_i = \mbox{Number of net claims for policy } i\]</span>
+<span class="math display">\[K = \mbox{Total number of policies}\]</span>
+<span class="math display">\[F_{i} = \mbox{ Cumulative density function for severity of policy } i\]</span></p>
+<p><span class="math display">\[N = \mbox{ frequency distribution}\]</span></p>
+<p><span class="math display">\[d_i = \mbox{ deductible for policy } i\]</span></p>
+<p><span class="math display">\[\lambda_i = \mbox{ ground-up mean parameter for frequency of policy } i\]</span></p>
+</div>
+<div id="how-to-use-it" class="section level3" number="3.4.2">
+<h3><span class="header-section-number">3.4.2</span> How to use it</h3>
+<p>Using the <code>brms_freq_sev</code> function is very similar to defining a standard BRMS model, but with the frequency and severity BRMS formulae and their distributions specified separately.</p>
+<div id="usage" class="section level4" number="3.4.2.1">
+<h4><span class="header-section-number">3.4.2.1</span> Usage</h4>
+<pre><code>brms_freq_sev =
+  function(
+    freq_formula,
+    sev_formula,
+    freq_family,
+    sev_family,
+    freq_data,
+    sev_data,
+    priors,
+    ded_name = &quot;ded&quot;,
+    freq_adj_fun = NULL,
+    ...
+  )</code></pre>
+</div>
+<div id="arguments" class="section level4" number="3.4.2.2">
+<h4><span class="header-section-number">3.4.2.2</span> Arguments</h4>
+<div id="freq_formula" class="section level5" number="3.4.2.2.1">
+<h5><span class="header-section-number">3.4.2.2.1</span> freq_formula</h5>
+<p>Class: BRMS Formula</p>
+<p>Description: Linear/Non-linear formula for frequency model</p>
+<p>Example:</p>
+<pre><code>bf(claimcount ~ f1 + expo ^ f2,
+    f1 ~ 1 + region,
+    f2 ~ 1,
+    nl = TRUE)</code></pre>
+</div>
+<div id="sev_formula" class="section level5" number="3.4.2.2.2">
+<h5><span class="header-section-number">3.4.2.2.2</span> sev_formula</h5>
+<p>Class: BRMS Formula</p>
+<p>Description: Linear/Non-linear formula for severity model</p>
+<p>Example:</p>
+<pre><code>bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 1 + region + s(expo),
+   sigma ~ 1 + region)</code></pre>
+</div>
+<div id="freq_family" class="section level5" number="3.4.2.2.3">
+<h5><span class="header-section-number">3.4.2.2.3</span> freq_family</h5>
+<p>Class: Family</p>
+<p>Description: Family for frequency model</p>
+<p>Example: <code>poisson()</code></p>
+</div>
+<div id="sev_family" class="section level5" number="3.4.2.2.4">
+<h5><span class="header-section-number">3.4.2.2.4</span> sev_family</h5>
+<p>Class: Family</p>
+<p>Description: Family for severity model</p>
+<p>Example: <code>lognormal()</code></p>
+</div>
+<div id="freq_data" class="section level5" number="3.4.2.2.5">
+<h5><span class="header-section-number">3.4.2.2.5</span> freq_data</h5>
+<p>Class: Data Frame</p>
+<p>Description: The data required for the frequency model. Must contain a column named <code>ded_name</code> (described below).</p>
+</div>
+<div id="sev_data" class="section level5" number="3.4.2.2.6">
+<h5><span class="header-section-number">3.4.2.2.6</span> sev_data</h5>
+<p>Class: Data Frame</p>
+<p>Description: The data required for the severity model</p>
+</div>
+<div id="priors" class="section level5" number="3.4.2.2.7">
+<h5><span class="header-section-number">3.4.2.2.7</span> priors</h5>
+<p>Class: BRMS Prior</p>
+<p>Description: The set of priors for both the frequency and severity models</p>
+<p>Example:</p>
+<pre><code>
+c(prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        resp = claimcount,
+        nlpar = f1),
+        
+  prior(normal(0, 1),
+        class = b,
+        coef = Intercept,
+        resp = claimcount,
+        nlpar = f2),
+               
+  prior(normal(8, 1),
+        class = Intercept,
+        resp = loss)
+        )
+</code></pre>
+</div>
+<div id="ded_name" class="section level5" number="3.4.2.2.8">
+<h5><span class="header-section-number">3.4.2.2.8</span> ded_name</h5>
+<p>Class: Character</p>
+<p>Description: The column name for the deductible/excess/attachment point in the frequency data.</p>
+</div>
+<div id="freq_adj_fun" class="section level5" number="3.4.2.2.9">
+<h5><span class="header-section-number">3.4.2.2.9</span> freq_adj_fun</h5>
+<p>Class: Character</p>
+<p>Description: The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used. This could be useful, say, if you want to limit the adjustment the deductible has on the frequency.</p>
+<p>Example:</p>
+<pre><code>&quot;fmax(0.2, 1 - lognormal_cdf(ded[n], mu_loss[n], sigma_loss[n]))&quot;
+</code></pre>
+</div>
+<div id="section" class="section level5" number="3.4.2.2.10">
+<h5><span class="header-section-number">3.4.2.2.10</span> …</h5>
+<p>Description: These can be any parameter which the standard <code>brm</code> function accepts.</p>
+<p>Example:</p>
+<pre><code>chains = 2,
+iter = 1000,
+warmup = 250,
+control = list(max_treedepth = 15)</code></pre>
+</div>
+</div>
+</div>
+<div id="example" class="section level3" number="3.4.3">
+<h3><span class="header-section-number">3.4.3</span> Example</h3>
+<pre><code>Simulate Frequency Data ####
+
+options(stringsAsFactors = FALSE,
+        mc.cores = parallel::detectCores())
+
+#&#39; Assuming one rating factor: region.
+
+set.seed(123456)
+
+# Region Names
+
+regions = c(&quot;EMEA&quot;, &quot;USC&quot;)
+
+# Number of frequency samples
+
+freq_n = 5e3
+
+# Defines a function for lambda
+
+freq_lambda = exp(c(EMEA = 0.5, USC = 1))
+
+# Generate samples for ground-up frequency data
+
+freq_data =
+  data.frame(
+    pol_id =  seq(freq_n),
+    ded = runif(freq_n, 1e3, 5e3),
+    lim = runif(freq_n, 50e3, 100e3),
+    region = sample(regions, freq_n, replace = T)
+  ) %&gt;%
+  mutate(
+    freq_lambda = freq_lambda[region],
+    claimcount_fgu =
+      rpois(freq_n, freq_lambda)
+  )
+
+Simulate severity Data ####
+
+mu_vec = c(EMEA = 8, USC = 9)
+sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+sev_data =
+  data.frame(
+    ded = rep(freq_data$ded,
+              freq_data$claimcount_fgu),
+    lim = rep(freq_data$lim,
+              freq_data$claimcount_fgu),
+    region = rep(freq_data$region,
+                 freq_data$claimcount_fgu)
+  ) %&gt;%
+  mutate(
+    loss_uncapped =
+      unlist(
+        lapply(
+          seq(freq_n),
+          function(i){
+
+            rlnorm(freq_data$claimcount_fgu[i],
+                   mu_vec[freq_data$region[i]],
+                   sigma_vec[freq_data$region[i]]
+            )
+
+          }
+        )
+      )
+  ) %&gt;%
+  mutate(
+    pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
+  ) %&gt;%
+  filter(
+    loss_uncapped &gt; ded
+  ) %&gt;%
+  mutate(
+    claim_id = row_number(),
+    lim_exceed = as.integer(loss_uncapped &gt;= lim),
+    loss = pmin(loss_uncapped, lim)
+  )
+
+# Frequency data filtered for losses below the deductible
+
+freq_data_net =
+  freq_data %&gt;%
+  left_join(
+    sev_data %&gt;%
+      group_by(
+        pol_id
+      ) %&gt;%
+      summarise(
+        claimcount = n()
+      ) %&gt;%
+      ungroup(),
+    by = &quot;pol_id&quot;
+  ) %&gt;%
+  mutate(
+    claimcount = coalesce(claimcount, 0)
+  )
+
+Run Model ####
+
+mv_model_fit =
+  brms_freq_sev(
+
+    freq_formula =
+      bf(claimcount ~ 1 + region),
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1 + region,
+         sigma ~ 1 + region
+      ),
+
+    freq_family = poisson(),
+    sev_family = lognormal(),
+
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    priors = c(prior(normal(0, 1),
+                     class = Intercept,
+                     resp = claimcount),
+
+               prior(normal(0, 1),
+                     class = b,
+                     resp = claimcount),
+
+               prior(normal(8, 1),
+                     class = Intercept,
+                     resp = loss),
+
+               prior(lognormal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
+                     resp = loss),
+
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = sigma,
+                     resp = loss)
+    ),
+
+    ded_name = &quot;ded&quot;,
+
+    chains = 1,
+    iter = 1000,
+    warmup = 250,
+    refresh = 50,
+    control =
+      list(adapt_delta = 0.999,
+           max_treedepth = 15)
+  )
+</code></pre>
+
+</div>
+</div>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="about-the-authors.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+
+    </div>
+  </div>
+<script src="libs/gitbook-2.6.7/js/app.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/lunr.js"></script>
+<script src="libs/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="libs/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="libs/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": null,
+"text": null
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": ["bayesact.pdf", "bayesact.epub"],
+"toc": {
+"collapse": "subsection"
+}
+});
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>

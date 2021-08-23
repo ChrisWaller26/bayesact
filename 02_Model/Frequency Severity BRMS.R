@@ -33,7 +33,7 @@ freq_n = 5e3
 # Defines a non-linear function for lambda to test model still works
 
 freq_mu_fun = function(expo, region){
-  exp(c(EMEA = 0.5, USC = 1)[region]) 
+  exp(c(EMEA = 0.5, USC = 0.8)[region]) 
 } 
 
 freq_data =
@@ -56,7 +56,7 @@ mu_fun = function(expo, region){
   c(EMEA = 8, USC = 9)[region]
 }
 
-sev_par2_vec = exp(c(EMEA = 0, USC = 0.4))
+sev_par2_vec = exp(c(EMEA = 0, USC = 0))
 
 sev_data =
   data.frame(
@@ -118,15 +118,14 @@ freq_data_net =
 #### Run Model ####
 
 mv_model_fit =
-  bayesact::brms_freq_sev(
+  brms_freq_sev(
     
     freq_formula = 
       bf(claimcount ~ 1 + region),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           1 + region,
-         sigma ~ 1 + region
+           1 + region
       ),
     
     freq_family = poisson(),
@@ -145,26 +144,37 @@ mv_model_fit =
                
                prior(normal(8, 1),
                      class = Intercept,
-                     resp = loss),
-               
-               prior(lognormal(0, 1),
-                     class = Intercept,
-                     dpar = sigma,
-                     resp = loss),
-               
-               prior(normal(0, 1),
-                     class = b,
-                     dpar = sigma,
                      resp = loss)
+               
+               # ,
+               # 
+               # prior(lognormal(0, 1),
+               #       class = Intercept,
+               #       dpar = shape,
+               #       resp = loss)
+               
+               # ,
+               # 
+               # prior(normal(0, 1),
+               #       class = b,
+               #       dpar = sigma,
+               #       resp = loss)
     ),
     
     ded_name = "ded",
+    use_cmdstan = FALSE,
     
     chains = 1,
+    parallel_chains = 4,
+    
     iter = 1000,
     warmup = 250,
-    refresh = 5,
-    control = 
+
+    refresh = 100,
+    # adapt_delta = 0.999,
+    # max_treedepth = 15
+    
+    control =
       list(adapt_delta = 0.999,
            max_treedepth = 15)
   )
@@ -181,23 +191,14 @@ model_post_samples =
       b_loss_s1_regionUSC,
     
     sigma_emea = exp(b_sigma_loss_Intercept), 
-    sigma_usc  = exp(b_sigma_loss_Intercept +
-                       b_sigma_loss_regionUSC),
+    sigma_usc  = exp(b_sigma_loss_Intercept 
+                     # + b_sigma_loss_regionUSC
+                     ),
     
     f1_emea = b_claimcount_f1_Intercept, 
     f1_usc  = b_claimcount_f1_Intercept +
       b_claimcount_f1_regionUSC
   )
-
-save(
-  full_data,
-  mv_model_fit,
-  model_post_samples,
-  file = "02_Model/mv_model_fit.RData"
-)
-
-base::load(file = "02_Model/mv_model_fit.RData")
-
 
 model_output =
   model_post_samples %>%
@@ -213,10 +214,10 @@ model_output =
       s1_usc  = 9,
       
       sigma_emea = exp(0), 
-      sigma_usc  = exp(0.4),
+      sigma_usc  = exp(0),
       
       f1_emea = 0.5, 
-      f1_usc  = 1
+      f1_usc  = 0.8
     )
   )
 
