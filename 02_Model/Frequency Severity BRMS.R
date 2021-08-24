@@ -162,21 +162,20 @@ mv_model_fit =
     ),
     
     ded_name = "ded",
-    use_cmdstan = FALSE,
+    use_cmdstan = TRUE,
     
-    chains = 1,
-    parallel_chains = 4,
+    chains = 2,
     
     iter = 1000,
     warmup = 250,
 
     refresh = 100,
-    # adapt_delta = 0.999,
-    # max_treedepth = 15
+    adapt_delta = 0.999,
+    max_treedepth = 15
     
-    control =
-      list(adapt_delta = 0.999,
-           max_treedepth = 15)
+    # control =
+    #   list(adapt_delta = 0.999,
+    #        max_treedepth = 15)
   )
 
 #### Results ####

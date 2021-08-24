@@ -233,6 +233,7 @@ brms_freq_sev =
     use_cmdstan  = FALSE,
     iter         = 1000,
     warmup       = 250,
+    sample_prior = "no",
     ...
   ){
 
@@ -729,7 +730,8 @@ brms_freq_sev =
         mv_model_formula,
         data = full_data,
         prior = priors,
-        stanvars = stanvars
+        stanvars = stanvars,
+        sample_prior = sample_prior
       )
 
     mv_model_data =
@@ -737,13 +739,15 @@ brms_freq_sev =
         mv_model_formula,
         data = full_data,
         prior = priors,
-        stanvars = stanvars
+        stanvars = stanvars,
+        sample_prior = sample_prior
       )
 
     mv_model_fit <-
       brm( formula = mv_model_formula,
            data = full_data,
            prior = priors,
+           sample_prior = sample_prior,
            empty = TRUE
       )
 
