@@ -162,7 +162,7 @@ mv_model_fit =
     ),
     
     ded_name = "ded",
-    use_cmdstan = TRUE,
+    use_cmdstan = FALSE,
     
     chains = 2,
     
@@ -171,7 +171,9 @@ mv_model_fit =
 
     refresh = 100,
     adapt_delta = 0.999,
-    max_treedepth = 15
+    max_treedepth = 15,
+    
+    mle = TRUE
     
     # control =
     #   list(adapt_delta = 0.999,

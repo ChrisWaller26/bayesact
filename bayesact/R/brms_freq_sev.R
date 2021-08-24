@@ -18,6 +18,7 @@
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
+#' @param mle          Boolean; If TRUE, the optimize function is used to create parameter point estimates via Maximum-Likelihood Estimation
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -231,6 +232,7 @@ brms_freq_sev =
     freq_adj_fun = NULL,
     stanvars     = NULL,
     use_cmdstan  = FALSE,
+    mle          = FALSE,
     iter         = 1000,
     warmup       = 250,
     sample_prior = "no",
@@ -798,7 +800,7 @@ brms_freq_sev =
         fixed = TRUE
       )
 
-    if(use_cmdstan){
+    if(use_cmdstan & !mle){
 
       stan_file = write_stan_file(adjusted_code)
       stan_model = cmdstan_model(stan_file)
@@ -816,7 +818,13 @@ brms_freq_sev =
           mv_model_fit_cmdstan$output_files()
           )
 
-    }else{
+      ## Convert back to BRMS fit object
+
+      mv_model_fit$fit <- mv_model_fit_stan
+
+      mv_model_fit <- rename_pars(mv_model_fit)
+
+    }else if(!mle){
 
       mv_model_fit_stan =
         stan(
@@ -827,14 +835,34 @@ brms_freq_sev =
           ...
         )
 
+      ## Convert back to BRMS fit object
+
+      mv_model_fit$fit <- mv_model_fit_stan
+
+      mv_model_fit <- rename_pars(mv_model_fit)
+
+    }else if(use_cmdstan){
+
+      stan_file = write_stan_file(adjusted_code)
+      stan_model = cmdstan_model(stan_file)
+
+      mv_model_fit =
+        stan_model$optimize(
+          data = lapply(mv_model_data, identity)
+        )
+
+    }else{
+
+      mv_model_fit =
+        optimizing(
+          stan_model(
+            model_code = adjusted_code
+          ),
+          data = mv_model_data
+        )
     }
-
-    ## Convert back to BRMS fit object
-
-    mv_model_fit$fit <- mv_model_fit_stan
-
-    mv_model_fit <- rename_pars(mv_model_fit)
 
     return(mv_model_fit)
 
   }
+
