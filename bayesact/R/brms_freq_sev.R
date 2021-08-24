@@ -17,6 +17,7 @@
 #' @param priors       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
+#' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -164,13 +165,14 @@
 #'
 #'     ded_name = "ded",
 #'
-#'     chains = 1,
+#'     use_cmdstan = TRUE,
+#'
+#'     chains = 4,
 #'     iter = 1000,
 #'     warmup = 250,
 #'     refresh = 50,
-#'     control =
-#'       list(adapt_delta = 0.999,
-#'            max_treedepth = 15)
+#'     adapt_delta = 0.999,
+#'     max_treedepth = 15
 #'   )
 #'
 #' #### Results ####
@@ -218,15 +220,19 @@
 #'
 brms_freq_sev =
   function(
-    freq_formula,
-    sev_formula,
-    freq_family,
-    sev_family,
-    freq_data,
-    sev_data,
-    priors,
-    ded_name = "ded",
+    freq_formula = NULL,
+    sev_formula  = NULL,
+    freq_family  = NULL,
+    sev_family   = NULL,
+    freq_data    = NULL,
+    sev_data     = NULL,
+    priors       = NULL,
+    ded_name     = "ded",
     freq_adj_fun = NULL,
+    stanvars     = NULL,
+    use_cmdstan  = FALSE,
+    iter         = 1000,
+    warmup       = 250,
     ...
   ){
 
@@ -238,6 +244,12 @@ brms_freq_sev =
     library(rstan)
     library(rstanarm)
     library(readr)
+
+    if(use_cmdstan){
+
+      library(cmdstanr)
+
+    }
 
     #### Error Checks ####
 
@@ -312,34 +324,6 @@ brms_freq_sev =
 
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
-
-    # Add censoring, if not present
-
-    if(!grepl("cens", as.character(sev_formula$formula[2]))){
-
-      cens_operator =
-        case_when(
-          grepl("|",
-                as.character(sev_formula$formula[2]),
-                fixed = TRUE) ~ "+",
-          TRUE ~ "|"
-        )
-
-      sev_formula =
-        bf(
-          as.formula(
-            paste(as.character(sev_formula$formula[2]),
-                  cens_operator,
-                  "cens(no_censoring) ~")
-          ),
-          as.formula(
-            as.character(sev_formula$formula[3])
-          ),
-          sev_formula$pforms,
-          nl = TRUE
-        )
-
-    }
 
     ## Add additional parameter terms, if missing
 
@@ -447,6 +431,32 @@ brms_freq_sev =
               (resp == sev_resp) & (dpar == "") ~ "b",
               TRUE ~ class
             )
+        )
+
+    }
+
+    # Add censoring, if not present
+
+    if(!grepl("cens", as.character(sev_formula$formula[2]))){
+
+      cens_operator =
+        case_when(
+          grepl("|",
+                as.character(sev_formula$formula[2]),
+                fixed = TRUE) ~ "+",
+          TRUE ~ "|"
+        )
+
+      sev_formula =
+        bf(
+          as.formula(
+            paste(as.character(sev_formula$formula[2]),
+                  cens_operator,
+                  "cens(no_censoring) ~",
+                  as.character(sev_formula$formula[3]))
+          ),
+          sev_formula$pforms,
+          nl = TRUE
         )
 
     }
@@ -784,12 +794,36 @@ brms_freq_sev =
         fixed = TRUE
       )
 
-    mv_model_fit_stan =
-      stan(
-        model_code = adjusted_code,
-        data = mv_model_data,
-        ...
-      )
+    if(use_cmdstan){
+
+      stan_file = write_stan_file(adjusted_code)
+      stan_model = cmdstan_model(stan_file)
+
+      mv_model_fit_cmdstan =
+        stan_model$sample(
+          data = lapply(mv_model_data, identity),
+          iter_warmup = warmup,
+          iter_sampling = (iter - warmup),
+          ...
+        )
+
+      mv_model_fit_stan =
+        rstan::read_stan_csv(
+          mv_model_fit_cmdstan$output_files()
+          )
+
+    }else{
+
+      mv_model_fit_stan =
+        stan(
+          model_code = adjusted_code,
+          data = mv_model_data,
+          warmup = warmup,
+          iter = iter,
+          ...
+        )
+
+    }
 
     ## Convert back to BRMS fit object
 
