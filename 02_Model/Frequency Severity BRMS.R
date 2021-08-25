@@ -33,8 +33,19 @@ freq_n = 5e3
 # Defines a non-linear function for lambda to test model still works
 
 freq_mu_fun = function(expo, region){
-  exp(c(EMEA = 0.5, USC = 0.8)[region]) 
+  exp(c(EMEA = 1, USC = 1.4)[region]) 
 } 
+
+inv_logit = function(x) exp(x)/(1 + exp(x))
+rzipois = function(n, lambda, zi){
+  
+  u = runif(n)
+  output = rpois(n, lambda) * (u >= zi)
+  return(output)
+  
+}
+
+freq_zi = inv_logit(c(EMEA = 0.4, USC = 0.6))
 
 freq_data =
   data.frame(
@@ -46,8 +57,9 @@ freq_data =
   ) %>%
   mutate(
     freq_mu = freq_mu_fun(expo, region),
+    freq_zi = freq_zi[region],
     claimcount_fgu = 
-      rpois(freq_n, freq_mu)
+      rzipois(freq_n, freq_mu, freq_zi)
   )
 
 #### Simulate severity Data ####
@@ -121,14 +133,15 @@ mv_model_fit =
   brms_freq_sev(
     
     freq_formula = 
-      bf(claimcount ~ 1 + region),
+      bf(claimcount ~ 1 + region,
+         zi ~ 1 + region),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
            1 + region
       ),
     
-    freq_family = poisson(),
+    freq_family = zero_inflated_poisson(),
     sev_family = lognormal(),
     
     freq_data = freq_data_net,
@@ -142,38 +155,42 @@ mv_model_fit =
                      class = b,
                      resp = claimcount),
                
+               prior(beta(5, 5),
+                     class = Intercept,
+                     dpar = zi,
+                     resp = claimcount),
+               
+               prior(normal(0, 1),
+                     class = b,
+                     dpar = zi,
+                     resp = claimcount),
+               
                prior(normal(8, 1),
                      class = Intercept,
+                     resp = loss),
+
+               prior(normal(0, 1),
+                     class = Intercept,
+                     dpar = sigma,
                      resp = loss)
-               
-               # ,
-               # 
-               # prior(lognormal(0, 1),
-               #       class = Intercept,
-               #       dpar = shape,
-               #       resp = loss)
-               
-               # ,
-               # 
-               # prior(normal(0, 1),
-               #       class = b,
-               #       dpar = sigma,
-               #       resp = loss)
     ),
     
     ded_name = "ded",
-    use_cmdstan = FALSE,
+    use_cmdstan = TRUE,
     
     chains = 2,
     
-    iter = 1000,
+    iter = 500,
     warmup = 250,
 
     refresh = 100,
     adapt_delta = 0.999,
     max_treedepth = 15,
     
-    mle = TRUE
+    mle = FALSE,
+    sample_prior = "no",
+    freq_adj_fun = NULL,
+    stanvars     = NULL
     
     # control =
     #   list(adapt_delta = 0.999,

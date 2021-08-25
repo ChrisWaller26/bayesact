@@ -775,12 +775,12 @@ brms_freq_sev =
 
     freq_adj_code_lccdf =
       gsub(
-        str_glue("{sev_dist}_lccdf"),
-        str_glue("weights_{sev_resp}[n] * {sev_dist}_lccdf"),
+        str_glue("  {sev_dist}_lccdf"),
+        str_glue("  weights_{sev_resp}[n] * {sev_dist}_lccdf"),
 
         gsub(
-          str_glue("{freq_dist}_lccdf"),
-          str_glue("weights_{freq_resp}[n] * {freq_dist}_lccdf"),
+          str_glue("  {freq_dist}_lccdf"),
+          str_glue("  weights_{freq_resp}[n] * {freq_dist}_lccdf"),
           freq_adj_code
         )
 
@@ -847,19 +847,31 @@ brms_freq_sev =
       stan_model = cmdstan_model(stan_file)
 
       mv_model_fit =
-        stan_model$optimize(
-          data = lapply(mv_model_data, identity)
+        append(
+          stan_model$optimize(
+            data = lapply(mv_model_data, identity)
+          ),
+          list(
+            model_code = adjusted_code,
+            data = lapply(mv_model_data, identity)
+          )
         )
 
     }else{
 
       mv_model_fit =
-        optimizing(
-          stan_model(
-            model_code = adjusted_code
+        append(
+          optimizing(
+            stan_model(
+              model_code = adjusted_code
+            ),
+            data = mv_model_data
           ),
-          data = mv_model_data
-        )
+          list(
+            model_code = adjusted_code,
+            data = mv_model_data
+          )
+          )
     }
 
     return(mv_model_fit)
