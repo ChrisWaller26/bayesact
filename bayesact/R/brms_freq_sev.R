@@ -312,6 +312,18 @@ brms_freq_sev =
 
     }
 
+    if(!any(class(sev_family) %in% c("family", "brmsfamily"))){
+
+      stop("Severity Family must be of type 'family' or 'brmsfamily'")
+
+    }
+
+    if(!any(class(freq_family) %in% c("family", "brmsfamily"))){
+
+      stop("Frequency Family must be of type 'family' or 'brmsfamily'")
+
+    }
+
     #### Multivariate Model ####
 
     sev_dist =
