@@ -856,6 +856,10 @@ brms_freq_sev =
 
       mv_model_fit$fit <- mv_model_fit_stan
 
+      class(adjusted_code) = c("character", "brmsmodel")
+
+      mv_model_fit$model = adjusted_code
+
       mv_model_fit <- rename_pars(mv_model_fit)
 
     }else if(!mle){
@@ -872,6 +876,10 @@ brms_freq_sev =
       ## Convert back to BRMS fit object
 
       mv_model_fit$fit <- mv_model_fit_stan
+
+      class(adjusted_code) = c("character", "brmsmodel")
+
+      mv_model_fit$model = adjusted_code
 
       mv_model_fit <- rename_pars(mv_model_fit)
 
