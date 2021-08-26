@@ -65,10 +65,10 @@ freq_data =
 #### Simulate severity Data ####
 
 mu_fun = function(expo, region){
-  c(EMEA = 8, USC = 9)[region]
+  exp(c(EMEA = 8, USC = 9)[region])
 }
 
-sev_par2_vec = exp(c(EMEA = 0, USC = 0))
+sev_par2_vec = exp(c(EMEA = 0, USC = 0.5))
 
 sev_data =
   data.frame(
@@ -88,11 +88,13 @@ sev_data =
           seq(freq_n),
           function(i){
             
-            rlnorm(freq_data$claimcount_fgu[i], 
-                   mu_fun(freq_data$expo[i], 
-                          freq_data$region[i]),
-                   sev_par2_vec[freq_data$region[i]]
-            )
+            rgamma(freq_data$claimcount_fgu[i],
+                   shape = sev_par2_vec[freq_data$region[i]], 
+                   rate = 
+                     sev_par2_vec[freq_data$region[i]] /
+                     mu_fun(freq_data$expo[i],
+                            freq_data$region[i])
+                   )
             
           }
         )
@@ -138,11 +140,12 @@ mv_model_fit =
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
-           1 + region
+           1 + region,
+         shape ~ 1 + region
       ),
     
     freq_family = zero_inflated_poisson(),
-    sev_family = lognormal(),
+    sev_family = Gamma(link = "log"),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
@@ -168,22 +171,33 @@ mv_model_fit =
                prior(normal(8, 1),
                      class = Intercept,
                      resp = loss),
-
-               prior(normal(0, 1),
+               
+               prior(normal(0, 0.5),
                      class = Intercept,
-                     dpar = sigma,
+                     dpar = shape,
+                     resp = loss),
+               
+               prior(normal(0, 0.5),
+                     class = b,
+                     dpar = shape,
                      resp = loss)
     ),
     
     ded_name = "ded",
+    ded_adj_min = 0.0001,
     use_cmdstan = TRUE,
     
-    chains = 2,
+    chains = 1,
     
-    iter = 500,
-    warmup = 250,
+    # init = 
+    #   list(
+    #     list()
+    #   )
+    
+    iter = 300,
+    warmup = 150,
 
-    refresh = 100,
+    refresh = 25,
     adapt_delta = 0.999,
     max_treedepth = 15,
     
@@ -192,7 +206,7 @@ mv_model_fit =
     freq_adj_fun = NULL,
     stanvars     = NULL
     
-    # control =
+    # , control =
     #   list(adapt_delta = 0.999,
     #        max_treedepth = 15)
   )

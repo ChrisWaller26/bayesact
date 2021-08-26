@@ -19,6 +19,7 @@
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
 #' @param mle          Boolean; If TRUE, the optimize function is used to create parameter point estimates via Maximum-Likelihood Estimation
+#' @param ded_adj_min  Numeric; The minimum value the deductible adjustment can be. This can help when some deductibles are very high.
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -236,6 +237,7 @@ brms_freq_sev =
     iter         = 1000,
     warmup       = 250,
     sample_prior = "no",
+    ded_adj_min  = 0,
     ...
   ){
 
@@ -327,6 +329,12 @@ brms_freq_sev =
 
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
+
+    if(sev_dist == "gamma"){
+
+      sev_family$dpars = c("mu", "shape")
+
+    }
 
     ## Add additional parameter terms, if missing
 
@@ -650,31 +658,6 @@ brms_freq_sev =
         }
       )
 
-    ## Extract Info from Formula Functions
-
-    sev_arg = fit_sev$family$dpars
-    freq_arg = fit_freq$family$dpars
-
-    sev_arg_stan =
-      str_flatten(
-        str_c(
-          sev_arg,
-          "_",
-          sev_resp,
-          "[n]"
-        ),
-        ", ")
-
-    freq_arg_stan =
-      str_flatten(
-        str_c(
-          freq_arg,
-          "_",
-          freq_resp,
-          "[n]"
-        ),
-        ", ")
-
     stanvars = c(
       stanvar(
         x = full_data[[ded_name]],
@@ -682,11 +665,90 @@ brms_freq_sev =
       )
     )
 
+    ## Setup Stan Code and Data
+
+    mv_model_code =
+      make_stancode(
+        mv_model_formula,
+        data = full_data,
+        prior = priors,
+        stanvars = stanvars,
+        sample_prior = sample_prior
+      )
+
+    mv_model_data =
+      make_standata(
+        mv_model_formula,
+        data = full_data,
+        prior = priors,
+        stanvars = stanvars,
+        sample_prior = sample_prior
+      )
+
+    mv_model_fit <-
+      brm( formula = mv_model_formula,
+           data = full_data,
+           prior = priors,
+           sample_prior = sample_prior,
+           empty = TRUE
+      )
+
+    ## Extract Info from Formula Functions
+
+    sev_lpdf_loc_start =
+      str_locate(
+        mv_model_code,
+        str_glue("_lpdf\\(Y_{sev_resp}\\[n\\] \\| ")
+      )[[1,"end"]]
+
+    sev_lpdf_loc_end =
+      sev_lpdf_loc_start +
+      str_locate(
+        substr(
+          mv_model_code,
+          sev_lpdf_loc_start,
+          100000
+        ),
+        "\\)"
+      )[[1,"end"]] - 2
+
+    sev_arg_stan =
+      substr(
+        mv_model_code,
+        sev_lpdf_loc_start,
+        sev_lpdf_loc_end
+      )
+
+
+    freq_lpmf_loc_start =
+      str_locate(
+        mv_model_code,
+        str_glue("_lpmf\\(Y_{freq_resp}\\[n\\] \\| ")
+      )[[1,"end"]]
+
+    freq_lpmf_loc_end =
+      freq_lpmf_loc_start +
+      str_locate(
+        substr(
+          mv_model_code,
+          freq_lpmf_loc_start,
+          100000
+        ),
+        "\\)"
+      )[[1,"end"]] - 2
+
+    freq_arg_stan =
+      substr(
+        mv_model_code,
+        freq_lpmf_loc_start,
+        freq_lpmf_loc_end
+      )
+
     if(is.null(freq_adj_fun)){
 
       freq_adj_fun =
         str_glue(
-          "1 - {sev_dist}_cdf(ded[n], {sev_arg_stan})"
+          "fmax({ded_adj_min}, 1 - {sev_dist}_cdf(ded[n], {sev_arg_stan}))"
         )
 
     }
@@ -724,34 +786,6 @@ brms_freq_sev =
         )
 
     }
-
-    ## Setup Stan Code and Data
-
-    mv_model_code =
-      make_stancode(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars,
-        sample_prior = sample_prior
-      )
-
-    mv_model_data =
-      make_standata(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars,
-        sample_prior = sample_prior
-      )
-
-    mv_model_fit <-
-      brm( formula = mv_model_formula,
-           data = full_data,
-           prior = priors,
-           sample_prior = sample_prior,
-           empty = TRUE
-      )
 
     code_split =
       str_split(
