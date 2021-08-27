@@ -367,7 +367,7 @@ brms_freq_sev =
 
     if(length(freq_family$dpars) > 1){
 
-      for(i in 2:length(sev_family$dpars)){
+      for(i in 2:length(freq_family$dpars)){
 
         if(is.null(freq_formula$pforms[[freq_family$dpars[i]]])){
 
@@ -760,7 +760,7 @@ brms_freq_sev =
 
       freq_adj_fun =
         str_glue(
-          "fmax({ded_adj_min}, 1 - {sev_dist}_cdf(ded[n], {sev_arg_stan}))"
+          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(ded[n] | {sev_arg_stan})))"
         )
 
     }

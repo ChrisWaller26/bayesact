@@ -145,7 +145,7 @@ mv_model_fit =
       ),
     
     freq_family = zero_inflated_poisson(),
-    sev_family = Gamma(link = "log"),
+    sev_family = hurdle_gamma(),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
@@ -185,15 +185,9 @@ mv_model_fit =
     
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    use_cmdstan = TRUE,
+    use_cmdstan = F,
     
     chains = 1,
-    
-    # init = 
-    #   list(
-    #     list()
-    #   )
-    
     iter = 300,
     warmup = 150,
 
