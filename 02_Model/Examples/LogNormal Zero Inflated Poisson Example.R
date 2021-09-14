@@ -65,7 +65,7 @@ freq_data =
 #### Simulate severity Data ####
 
 mu_fun = function(expo, region){
-  exp(c(EMEA = 8, USC = 9)[region])
+  c(EMEA = 8, USC = 9)[region]
 }
 
 sev_par2_vec = exp(c(EMEA = 0, USC = 0.5))
@@ -88,12 +88,10 @@ sev_data =
           seq(freq_n),
           function(i){
             
-            rgamma(freq_data$claimcount_fgu[i],
-                   shape = sev_par2_vec[freq_data$region[i]], 
-                   rate = 
-                     sev_par2_vec[freq_data$region[i]] /
-                     mu_fun(freq_data$expo[i],
-                            freq_data$region[i])
+            rlnorm(freq_data$claimcount_fgu[i], 
+                   mu_fun(freq_data$expo[i],
+                            freq_data$region[i]),
+                   sev_par2_vec[freq_data$region[i]]
                    )
             
           }
@@ -141,11 +139,11 @@ mv_model_fit =
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
            1 + region,
-         shape ~ 1 + region
+         sigma ~ 1 + region
       ),
     
     freq_family = zero_inflated_poisson(),
-    sev_family = hurdle_gamma(),
+    sev_family = lognormal(),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
@@ -174,18 +172,18 @@ mv_model_fit =
                
                prior(normal(0, 0.5),
                      class = Intercept,
-                     dpar = shape,
+                     dpar = sigma,
                      resp = loss),
                
                prior(normal(0, 0.5),
                      class = b,
-                     dpar = shape,
+                     dpar = sigma,
                      resp = loss)
     ),
     
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    use_cmdstan = F,
+    use_cmdstan = T,
     
     chains = 1,
     iter = 300,
@@ -199,10 +197,6 @@ mv_model_fit =
     sample_prior = "no",
     freq_adj_fun = NULL,
     stanvars     = NULL
-    
-    # , control =
-    #   list(adapt_delta = 0.999,
-    #        max_treedepth = 15)
   )
 
 #### Results ####
@@ -217,13 +211,18 @@ model_post_samples =
       b_loss_s1_regionUSC,
     
     sigma_emea = exp(b_sigma_loss_Intercept), 
-    sigma_usc  = exp(b_sigma_loss_Intercept 
-                     # + b_sigma_loss_regionUSC
-                     ),
+    sigma_usc  = exp(b_sigma_loss_Intercept
+                     + b_sigma_loss_regionUSC),
     
-    f1_emea = b_claimcount_f1_Intercept, 
-    f1_usc  = b_claimcount_f1_Intercept +
-      b_claimcount_f1_regionUSC
+    f1_emea = exp(b_claimcount_f1_Intercept), 
+    f1_usc  = exp(b_claimcount_f1_Intercept +
+                    b_claimcount_f1_regionUSC),
+    
+    zi_emea = 
+      inv_logit(b_zi_claimcount_Intercept), 
+    zi_usc  = 
+      inv_logit(b_zi_claimcount_Intercept +
+                  b_zi_claimcount_regionUSC)
   )
 
 model_output =
@@ -236,14 +235,28 @@ model_output =
   as.data.frame() %>%
   bind_rows(
     data.frame(
-      s1_emea = 8, 
-      s1_usc  = 9,
+      s1_emea = mu_fun(1, "EMEA"), 
+      s1_usc  = mu_fun(1, "USC"),
       
-      sigma_emea = exp(0), 
-      sigma_usc  = exp(0),
+      sigma_emea = sev_par2_vec["EMEA"], 
+      sigma_usc  = sev_par2_vec["USC"],
       
-      f1_emea = 0.5, 
-      f1_usc  = 0.8
+      f1_emea = freq_mu_fun(1, "EMEA"), 
+      f1_usc  = freq_mu_fun(1, "USC"),
+      
+      zi_emea = freq_zi["EMEA"], 
+      zi_usc  = freq_zi["USC"]
     )
   )
+
+rownames(model_output) = 
+  c("Lower 2.5%",
+    "Mean",
+    "Upper 97.5%",
+    "Actual")
+
+# Check test has passed
+
+(model_output[4,] > model_output[1,]) &
+  (model_output[4,] < model_output[3,])
 
