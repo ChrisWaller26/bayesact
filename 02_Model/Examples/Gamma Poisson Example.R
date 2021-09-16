@@ -132,7 +132,7 @@ mv_model_fit =
       ),
     
     freq_family = poisson(),
-    sev_family = Gamma(),
+    sev_family = Gamma(link = "log"),
     
     freq_data = freq_data_net,
     sev_data = sev_data,
@@ -165,8 +165,8 @@ mv_model_fit =
     use_cmdstan = F,
     
     chains = 1,
-    iter = 1000,
-    warmup = 500,
+    iter = 300,
+    warmup = 150,
 
     refresh = 100,
     control =
@@ -176,7 +176,15 @@ mv_model_fit =
     mle = FALSE,
     sample_prior = "no",
     freq_adj_fun = NULL,
-    stanvars     = NULL
+    stanvars     = NULL,
+    
+    init = 
+      list(
+        list(
+          Intercept = 8,
+          shape = 3
+        )
+      )
   )
 
 #### Results ####

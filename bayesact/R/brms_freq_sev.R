@@ -238,6 +238,7 @@ brms_freq_sev =
     warmup       = 250,
     sample_prior = "no",
     ded_adj_min  = 0,
+    seed         = sample.int(.Machine$integer.max, 1),
     ...
   ){
 
@@ -856,6 +857,7 @@ brms_freq_sev =
           data = lapply(mv_model_data, identity),
           iter_warmup = warmup,
           iter_sampling = (iter - warmup),
+          seed = seed,
           ...
         )
 
@@ -882,6 +884,7 @@ brms_freq_sev =
           data = mv_model_data,
           warmup = warmup,
           iter = iter,
+          seed = seed,
           ...
         )
 
@@ -903,7 +906,8 @@ brms_freq_sev =
       mv_model_fit =
         append(
           stan_model$optimize(
-            data = lapply(mv_model_data, identity)
+            data = lapply(mv_model_data, identity),
+            seed = seed
           ),
           list(
             model_code = adjusted_code,
@@ -919,7 +923,8 @@ brms_freq_sev =
             stan_model(
               model_code = adjusted_code
             ),
-            data = mv_model_data
+            data = mv_model_data,
+            seed = seed
           ),
           list(
             model_code = adjusted_code,
