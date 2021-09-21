@@ -121,12 +121,14 @@ mv_model_fit =
   brms_freq_sev(
     
     freq_formula = 
-      bf(claimcount ~ 1 + region),
+      bf(claimcount ~ 1 + region,
+         center = TRUE),
     
     sev_formula = 
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
            1 + region,
-         sigma ~ 1 + region
+         sigma ~ 1 + region,
+         center = TRUE
       ),
     
     freq_family = poisson(),
@@ -163,8 +165,8 @@ mv_model_fit =
     use_cmdstan = T,
     
     chains = 1,
-    iter = 1000,
-    warmup = 500,
+    iter = 300,
+    warmup = 150,
 
     refresh = 100,
     adapt_delta = 0.8,

@@ -394,15 +394,9 @@ brms_freq_sev =
             paste0("f1 ~ ", as.character(freq_formula$formula[3]))
           ),
           freq_formula$pforms,
-          first = attr(freq_formula$formula, "first"),
           autocor = attr(freq_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(freq_formula$formula, "loop"),
-          center = attr(freq_formula$formula, "center"),
-          cmc = attr(freq_formula$formula, "cmc"),
-          sparse = attr(freq_formula$formula, "sparse"),
-          decomp = attr(freq_formula$formula, "decomp"),
-          unused = attr(freq_formula$formula, "unused")
+          loop = attr(freq_formula$formula, "loop")
         )
 
       priors =
@@ -440,15 +434,9 @@ brms_freq_sev =
             paste0("s1 ~ ", as.character(sev_formula$formula[3]))
           ),
           sev_formula$pforms,
-          first = attr(sev_formula$formula, "first"),
           autocor = attr(sev_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(sev_formula$formula, "loop"),
-          center = attr(sev_formula$formula, "center"),
-          cmc = attr(sev_formula$formula, "cmc"),
-          sparse = attr(sev_formula$formula, "sparse"),
-          decomp = attr(sev_formula$formula, "decomp"),
-          unused = attr(sev_formula$formula, "unused")
+          loop = attr(sev_formula$formula, "loop")
         )
 
       priors =
@@ -496,15 +484,9 @@ brms_freq_sev =
                   as.character(sev_formula$formula[3]))
           ),
           sev_formula$pforms,
-          first = attr(sev_formula$formula, "first"),
           autocor = attr(sev_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(sev_formula$formula, "loop"),
-          center = attr(sev_formula$formula, "center"),
-          cmc = attr(sev_formula$formula, "cmc"),
-          sparse = attr(sev_formula$formula, "sparse"),
-          decomp = attr(sev_formula$formula, "decomp"),
-          unused = attr(sev_formula$formula, "unused")
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }
@@ -524,15 +506,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          first = attr(sev_formula$formula, "first"),
           autocor = attr(sev_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(sev_formula$formula, "loop"),
-          center = attr(sev_formula$formula, "center"),
-          cmc = attr(sev_formula$formula, "cmc"),
-          sparse = attr(sev_formula$formula, "sparse"),
-          decomp = attr(sev_formula$formula, "decomp"),
-          unused = attr(sev_formula$formula, "unused")
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }else if(!grepl("weights", as.character(sev_formula$formula[2]))){
@@ -548,15 +524,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          first = attr(sev_formula$formula, "first"),
           autocor = attr(sev_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(sev_formula$formula, "loop"),
-          center = attr(sev_formula$formula, "center"),
-          cmc = attr(sev_formula$formula, "cmc"),
-          sparse = attr(sev_formula$formula, "sparse"),
-          decomp = attr(sev_formula$formula, "decomp"),
-          unused = attr(sev_formula$formula, "unused")
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }else{
@@ -593,15 +563,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          first = attr(sev_formula$formula, "first"),
           autocor = attr(sev_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(sev_formula$formula, "loop"),
-          center = attr(sev_formula$formula, "center"),
-          cmc = attr(sev_formula$formula, "cmc"),
-          sparse = attr(sev_formula$formula, "sparse"),
-          decomp = attr(sev_formula$formula, "decomp"),
-          unused = attr(sev_formula$formula, "unused")
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }
@@ -620,15 +584,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          first = attr(freq_formula$formula, "first"),
           autocor = attr(freq_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(freq_formula$formula, "loop"),
-          center = attr(freq_formula$formula, "center"),
-          cmc = attr(freq_formula$formula, "cmc"),
-          sparse = attr(freq_formula$formula, "sparse"),
-          decomp = attr(freq_formula$formula, "decomp"),
-          unused = attr(freq_formula$formula, "unused")
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }else if(!grepl("weights", as.character(freq_formula$formula[2]))){
@@ -644,15 +602,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          first = attr(freq_formula$formula, "first"),
           autocor = attr(freq_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(freq_formula$formula, "loop"),
-          center = attr(freq_formula$formula, "center"),
-          cmc = attr(freq_formula$formula, "cmc"),
-          sparse = attr(freq_formula$formula, "sparse"),
-          decomp = attr(freq_formula$formula, "decomp"),
-          unused = attr(freq_formula$formula, "unused")
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }else{
@@ -689,15 +641,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          first = attr(freq_formula$formula, "first"),
           autocor = attr(freq_formula$formula, "autocor"),
           nl = TRUE,
-          loop = attr(freq_formula$formula, "loop"),
-          center = attr(freq_formula$formula, "center"),
-          cmc = attr(freq_formula$formula, "cmc"),
-          sparse = attr(freq_formula$formula, "sparse"),
-          decomp = attr(freq_formula$formula, "decomp"),
-          unused = attr(freq_formula$formula, "unused")
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }
