@@ -154,7 +154,7 @@ mv_model_fit =
     sev_formula = 
       bf(loss | 
            trunc(lb = notified_size) + 
-           cens(censor, y2 = ded) + 
+           # cens(censor, y2 = ded) + 
            weights(weight) ~ 
            1 + region,
          sigma ~ 1 + region
@@ -166,7 +166,7 @@ mv_model_fit =
     freq_data = freq_data_net,
     sev_data = sev_data,
     
-    priors = c(prior(normal(0, 1),
+    prior = c(prior(normal(0, 1),
                      class = Intercept,
                      resp = claimcount),
                

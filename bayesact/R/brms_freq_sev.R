@@ -14,7 +14,7 @@
 #' @param sev_family   Family; Family for severity model
 #' @param freq_data    Data Frame; The data required for the frequency model
 #' @param sev_data     Data Frame; The data required for the severity model
-#' @param priors       BRMS Prior; The set of priors for both the frequency and severity models
+#' @param prior       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
@@ -142,7 +142,7 @@
 #'     freq_data = freq_data_net,
 #'     sev_data = sev_data,
 #'
-#'     priors = c(prior(normal(0, 1),
+#'     prior = c(prior(normal(0, 1),
 #'                      class = Intercept,
 #'                      resp = claimcount),
 #'
@@ -228,7 +228,7 @@ brms_freq_sev =
     sev_family   = NULL,
     freq_data    = NULL,
     sev_data     = NULL,
-    priors       = NULL,
+    prior        = NULL,
     ded_name     = "ded",
     freq_adj_fun = NULL,
     stanvars     = NULL,
@@ -295,7 +295,7 @@ brms_freq_sev =
 
     }
 
-    if(is.null(priors)){
+    if(is.null(prior)){
 
       stop("Priors Required")
 
@@ -399,8 +399,8 @@ brms_freq_sev =
           loop = attr(freq_formula$formula, "loop")
         )
 
-      priors =
-        priors %>%
+      prior =
+        prior %>%
         mutate(
           nlpar =
             case_when(
@@ -439,8 +439,8 @@ brms_freq_sev =
           loop = attr(sev_formula$formula, "loop")
         )
 
-      priors =
-        priors %>%
+      prior =
+        prior %>%
         mutate(
           nlpar =
             case_when(
@@ -555,6 +555,11 @@ brms_freq_sev =
                   weight_end_loc - 1
                 ),
                 ") * (1 - freq))",
+                substr(
+                  as.character(sev_formula$formula[2]),
+                  weight_end_loc + 1,
+                  1000
+                ),
                 "~",
                 as.character(sev_formula$formula[3])
               ),
@@ -702,7 +707,7 @@ brms_freq_sev =
       make_stancode(
         mv_model_formula,
         data = full_data,
-        prior = priors,
+        prior = prior,
         stanvars = stanvars,
         sample_prior = sample_prior
       )
@@ -711,7 +716,7 @@ brms_freq_sev =
       make_standata(
         mv_model_formula,
         data = full_data,
-        prior = priors,
+        prior = prior,
         stanvars = stanvars,
         sample_prior = sample_prior
       )
@@ -719,7 +724,7 @@ brms_freq_sev =
     mv_model_fit <-
       brm( formula = mv_model_formula,
            data = full_data,
-           prior = priors,
+           prior = prior,
            sample_prior = sample_prior,
            empty = TRUE
       )
