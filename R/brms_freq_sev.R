@@ -690,7 +690,7 @@ brms_freq_sev =
       full_data %>%
       mutate_all(
         function(x){
-          coalesce(x, get(paste0("as.", class(x)))(1))
+          coalesce(x, get(paste0("as.", class(x)))(1, origin = "1900-01-01"))
         }
       )
 
