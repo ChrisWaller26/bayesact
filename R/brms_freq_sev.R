@@ -14,10 +14,12 @@
 #' @param sev_family   Family; Family for severity model
 #' @param freq_data    Data Frame; The data required for the frequency model
 #' @param sev_data     Data Frame; The data required for the severity model
-#' @param priors       BRMS Prior; The set of priors for both the frequency and severity models
+#' @param prior       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
 #' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
+#' @param mle          Boolean; If TRUE, the optimize function is used to create parameter point estimates via Maximum-Likelihood Estimation
+#' @param ded_adj_min  Numeric; The minimum value the deductible adjustment can be. This can help when some deductibles are very high.
 #' @param ...          Additional accepted BRMS fit parameters
 #' @return             BRMS Fit
 #'
@@ -140,7 +142,7 @@
 #'     freq_data = freq_data_net,
 #'     sev_data = sev_data,
 #'
-#'     priors = c(prior(normal(0, 1),
+#'     prior = c(prior(normal(0, 1),
 #'                      class = Intercept,
 #'                      resp = claimcount),
 #'
@@ -226,13 +228,17 @@ brms_freq_sev =
     sev_family   = NULL,
     freq_data    = NULL,
     sev_data     = NULL,
-    priors       = NULL,
+    prior        = NULL,
     ded_name     = "ded",
     freq_adj_fun = NULL,
     stanvars     = NULL,
     use_cmdstan  = FALSE,
+    mle          = FALSE,
     iter         = 1000,
     warmup       = 250,
+    sample_prior = "no",
+    ded_adj_min  = 0,
+    seed         = sample.int(.Machine$integer.max, 1),
     ...
   ){
 
@@ -289,7 +295,7 @@ brms_freq_sev =
 
     }
 
-    if(is.null(priors)){
+    if(is.null(prior)){
 
       stop("Priors Required")
 
@@ -304,6 +310,18 @@ brms_freq_sev =
     if(is.null(stanvars)){
 
       stanvars = stanvar(x = 0, name = "dummy_default_stanvar")
+
+    }
+
+    if(!any(class(sev_family) %in% c("family", "brmsfamily"))){
+
+      stop("Severity Family must be of type 'family' or 'brmsfamily'")
+
+    }
+
+    if(!any(class(freq_family) %in% c("family", "brmsfamily"))){
+
+      stop("Frequency Family must be of type 'family' or 'brmsfamily'")
 
     }
 
@@ -325,6 +343,12 @@ brms_freq_sev =
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
 
+    if(sev_dist == "gamma"){
+
+      sev_family$dpars = c("mu", "shape")
+
+    }
+
     ## Add additional parameter terms, if missing
 
     if(length(sev_family$dpars) > 1){
@@ -344,7 +368,7 @@ brms_freq_sev =
 
     if(length(freq_family$dpars) > 1){
 
-      for(i in 2:length(sev_family$dpars)){
+      for(i in 2:length(freq_family$dpars)){
 
         if(is.null(freq_formula$pforms[[freq_family$dpars[i]]])){
 
@@ -370,11 +394,13 @@ brms_freq_sev =
             paste0("f1 ~ ", as.character(freq_formula$formula[3]))
           ),
           freq_formula$pforms,
-          nl = TRUE
+          autocor = attr(freq_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(freq_formula$formula, "loop")
         )
 
-      priors =
-        priors %>%
+      prior =
+        prior %>%
         mutate(
           nlpar =
             case_when(
@@ -408,11 +434,13 @@ brms_freq_sev =
             paste0("s1 ~ ", as.character(sev_formula$formula[3]))
           ),
           sev_formula$pforms,
-          nl = TRUE
+          autocor = attr(sev_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(sev_formula$formula, "loop")
         )
 
-      priors =
-        priors %>%
+      prior =
+        prior %>%
         mutate(
           nlpar =
             case_when(
@@ -456,7 +484,9 @@ brms_freq_sev =
                   as.character(sev_formula$formula[3]))
           ),
           sev_formula$pforms,
-          nl = TRUE
+          autocor = attr(sev_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }
@@ -476,7 +506,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          nl = TRUE
+          autocor = attr(sev_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }else if(!grepl("weights", as.character(sev_formula$formula[2]))){
@@ -492,7 +524,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          nl = TRUE
+          autocor = attr(sev_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }else{
@@ -521,6 +555,11 @@ brms_freq_sev =
                   weight_end_loc - 1
                 ),
                 ") * (1 - freq))",
+                substr(
+                  as.character(sev_formula$formula[2]),
+                  weight_end_loc + 1,
+                  1000
+                ),
                 "~",
                 as.character(sev_formula$formula[3])
               ),
@@ -529,7 +568,9 @@ brms_freq_sev =
             )
           ),
           sev_formula$pforms,
-          nl = TRUE
+          autocor = attr(sev_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(sev_formula$formula, "loop")
         )
 
     }
@@ -548,7 +589,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          nl = TRUE
+          autocor = attr(freq_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }else if(!grepl("weights", as.character(freq_formula$formula[2]))){
@@ -564,7 +607,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          nl = TRUE
+          autocor = attr(freq_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }else{
@@ -601,7 +646,9 @@ brms_freq_sev =
             )
           ),
           freq_formula$pforms,
-          nl = TRUE
+          autocor = attr(freq_formula$formula, "autocor"),
+          nl = TRUE,
+          loop = attr(freq_formula$formula, "loop")
         )
 
     }
@@ -647,31 +694,6 @@ brms_freq_sev =
         }
       )
 
-    ## Extract Info from Formula Functions
-
-    sev_arg = fit_sev$family$dpars
-    freq_arg = fit_freq$family$dpars
-
-    sev_arg_stan =
-      str_flatten(
-        str_c(
-          sev_arg,
-          "_",
-          sev_resp,
-          "[n]"
-        ),
-        ", ")
-
-    freq_arg_stan =
-      str_flatten(
-        str_c(
-          freq_arg,
-          "_",
-          freq_resp,
-          "[n]"
-        ),
-        ", ")
-
     stanvars = c(
       stanvar(
         x = full_data[[ded_name]],
@@ -679,11 +701,90 @@ brms_freq_sev =
       )
     )
 
+    ## Setup Stan Code and Data
+
+    mv_model_code =
+      make_stancode(
+        mv_model_formula,
+        data = full_data,
+        prior = prior,
+        stanvars = stanvars,
+        sample_prior = sample_prior
+      )
+
+    mv_model_data =
+      make_standata(
+        mv_model_formula,
+        data = full_data,
+        prior = prior,
+        stanvars = stanvars,
+        sample_prior = sample_prior
+      )
+
+    mv_model_fit <-
+      brm( formula = mv_model_formula,
+           data = full_data,
+           prior = prior,
+           sample_prior = sample_prior,
+           empty = TRUE
+      )
+
+    ## Extract Info from Formula Functions
+
+    sev_lpdf_loc_start =
+      str_locate(
+        mv_model_code,
+        str_glue("_lpdf\\(Y_{sev_resp}\\[n\\] \\| ")
+      )[[1,"end"]]
+
+    sev_lpdf_loc_end =
+      sev_lpdf_loc_start +
+      str_locate(
+        substr(
+          mv_model_code,
+          sev_lpdf_loc_start,
+          100000
+        ),
+        "\\)"
+      )[[1,"end"]] - 2
+
+    sev_arg_stan =
+      substr(
+        mv_model_code,
+        sev_lpdf_loc_start,
+        sev_lpdf_loc_end
+      )
+
+
+    freq_lpmf_loc_start =
+      str_locate(
+        mv_model_code,
+        str_glue("_lpmf\\(Y_{freq_resp}\\[n\\] \\| ")
+      )[[1,"end"]]
+
+    freq_lpmf_loc_end =
+      freq_lpmf_loc_start +
+      str_locate(
+        substr(
+          mv_model_code,
+          freq_lpmf_loc_start,
+          100000
+        ),
+        "\\)"
+      )[[1,"end"]] - 2
+
+    freq_arg_stan =
+      substr(
+        mv_model_code,
+        freq_lpmf_loc_start,
+        freq_lpmf_loc_end
+      )
+
     if(is.null(freq_adj_fun)){
 
       freq_adj_fun =
         str_glue(
-          "1 - {sev_dist}_cdf(ded[n], {sev_arg_stan})"
+          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(ded[n] | {sev_arg_stan})))"
         )
 
     }
@@ -722,31 +823,6 @@ brms_freq_sev =
 
     }
 
-    ## Setup Stan Code and Data
-
-    mv_model_code =
-      make_stancode(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars
-      )
-
-    mv_model_data =
-      make_standata(
-        mv_model_formula,
-        data = full_data,
-        prior = priors,
-        stanvars = stanvars
-      )
-
-    mv_model_fit <-
-      brm( formula = mv_model_formula,
-           data = full_data,
-           prior = priors,
-           empty = TRUE
-      )
-
     code_split =
       str_split(
         mv_model_code,
@@ -769,12 +845,12 @@ brms_freq_sev =
 
     freq_adj_code_lccdf =
       gsub(
-        str_glue("{sev_dist}_lccdf"),
-        str_glue("weights_{sev_resp}[n] * {sev_dist}_lccdf"),
+        str_glue("  {sev_dist}_lccdf"),
+        str_glue("  weights_{sev_resp}[n] * {sev_dist}_lccdf"),
 
         gsub(
-          str_glue("{freq_dist}_lccdf"),
-          str_glue("weights_{freq_resp}[n] * {freq_dist}_lccdf"),
+          str_glue("  {freq_dist}_lccdf"),
+          str_glue("  weights_{freq_resp}[n] * {freq_dist}_lccdf"),
           freq_adj_code
         )
 
@@ -794,7 +870,7 @@ brms_freq_sev =
         fixed = TRUE
       )
 
-    if(use_cmdstan){
+    if(use_cmdstan & !mle){
 
       stan_file = write_stan_file(adjusted_code)
       stan_model = cmdstan_model(stan_file)
@@ -804,6 +880,7 @@ brms_freq_sev =
           data = lapply(mv_model_data, identity),
           iter_warmup = warmup,
           iter_sampling = (iter - warmup),
+          seed = seed,
           ...
         )
 
@@ -812,7 +889,17 @@ brms_freq_sev =
           mv_model_fit_cmdstan$output_files()
           )
 
-    }else{
+      ## Convert back to BRMS fit object
+
+      mv_model_fit$fit <- mv_model_fit_stan
+
+      class(adjusted_code) = c("character", "brmsmodel")
+
+      mv_model_fit$model = adjusted_code
+
+      mv_model_fit <- rename_pars(mv_model_fit)
+
+    }else if(!mle){
 
       mv_model_fit_stan =
         stan(
@@ -820,17 +907,56 @@ brms_freq_sev =
           data = mv_model_data,
           warmup = warmup,
           iter = iter,
+          seed = seed,
           ...
         )
 
+      ## Convert back to BRMS fit object
+
+      mv_model_fit$fit <- mv_model_fit_stan
+
+      class(adjusted_code) = c("character", "brmsmodel")
+
+      mv_model_fit$model = adjusted_code
+
+      mv_model_fit <- rename_pars(mv_model_fit)
+
+    }else if(use_cmdstan){
+
+      stan_file = write_stan_file(adjusted_code)
+      stan_model = cmdstan_model(stan_file)
+
+      mv_model_fit =
+        append(
+          stan_model$optimize(
+            data = lapply(mv_model_data, identity),
+            seed = seed
+          ),
+          list(
+            model_code = adjusted_code,
+            data = lapply(mv_model_data, identity)
+          )
+        )
+
+    }else{
+
+      mv_model_fit =
+        append(
+          optimizing(
+            stan_model(
+              model_code = adjusted_code
+            ),
+            data = mv_model_data,
+            seed = seed
+          ),
+          list(
+            model_code = adjusted_code,
+            data = mv_model_data
+          )
+          )
     }
-
-    ## Convert back to BRMS fit object
-
-    mv_model_fit$fit <- mv_model_fit_stan
-
-    mv_model_fit <- rename_pars(mv_model_fit)
 
     return(mv_model_fit)
 
   }
+

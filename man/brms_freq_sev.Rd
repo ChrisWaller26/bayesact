@@ -5,15 +5,22 @@
 \title{Bayesian Frequency Severity Model with BRMS}
 \usage{
 brms_freq_sev(
-  freq_formula,
-  sev_formula,
-  freq_family,
-  sev_family,
-  freq_data,
-  sev_data,
-  priors,
+  freq_formula = NULL,
+  sev_formula = NULL,
+  freq_family = NULL,
+  sev_family = NULL,
+  freq_data = NULL,
+  sev_data = NULL,
+  priors = NULL,
   ded_name = "ded",
-  freq_adj_fun,
+  freq_adj_fun = NULL,
+  stanvars = NULL,
+  use_cmdstan = FALSE,
+  mle = FALSE,
+  iter = 1000,
+  warmup = 250,
+  sample_prior = "no",
+  ded_adj_min = 0,
   ...
 )
 }
@@ -34,7 +41,13 @@ brms_freq_sev(
 
 \item{ded_name}{Character; The column name for the deductible/excess/attachment point in the frequency data}
 
-\item{freq_adj_fun}{Character; The Stan function to adjust the frequency mean by. If NULL, the survival function of the severity model at the deductible will be used.}
+\item{freq_adj_fun}{Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.}
+
+\item{use_cmdstan}{Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.}
+
+\item{mle}{Boolean; If TRUE, the optimize function is used to create parameter point estimates via Maximum-Likelihood Estimation}
+
+\item{ded_adj_min}{Numeric; The minimum value the deductible adjustment can be. This can help when some deductibles are very high.}
 
 \item{...}{Additional accepted BRMS fit parameters}
 }
@@ -193,13 +206,14 @@ mv_model_fit =
 
     ded_name = "ded",
 
-    chains = 1,
+    use_cmdstan = TRUE,
+
+    chains = 4,
     iter = 1000,
     warmup = 250,
     refresh = 50,
-    control =
-      list(adapt_delta = 0.999,
-           max_treedepth = 15)
+    adapt_delta = 0.999,
+    max_treedepth = 15
   )
 
 #### Results ####
