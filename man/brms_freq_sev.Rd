@@ -11,7 +11,7 @@ brms_freq_sev(
   sev_family = NULL,
   freq_data = NULL,
   sev_data = NULL,
-  priors = NULL,
+  prior = NULL,
   ded_name = "ded",
   freq_adj_fun = NULL,
   stanvars = NULL,
@@ -21,6 +21,7 @@ brms_freq_sev(
   warmup = 250,
   sample_prior = "no",
   ded_adj_min = 0,
+  seed = sample.int(.Machine$integer.max, 1),
   ...
 )
 }
@@ -37,7 +38,7 @@ brms_freq_sev(
 
 \item{sev_data}{Data Frame; The data required for the severity model}
 
-\item{priors}{BRMS Prior; The set of priors for both the frequency and severity models}
+\item{prior}{BRMS Prior; The set of priors for both the frequency and severity models}
 
 \item{ded_name}{Character; The column name for the deductible/excess/attachment point in the frequency data}
 
@@ -181,7 +182,7 @@ mv_model_fit =
     freq_data = freq_data_net,
     sev_data = sev_data,
 
-    priors = c(prior(normal(0, 1),
+    prior = c(prior(normal(0, 1),
                      class = Intercept,
                      resp = claimcount),
 
