@@ -327,18 +327,41 @@ brms_freq_sev =
 
     #### Multivariate Model ####
 
-    sev_dist =
-      case_when(
-        sev_family$family == "gaussian" ~ "normal",
-        sev_family$family == "Gamma"    ~ "gamma",
-        TRUE ~ sev_family$family
-      )
+    ## Severity Distribution Name
 
-    freq_dist =
-      case_when(
-        freq_family$family == "negbinomial" ~ "neg_binomial",
-        TRUE ~ freq_family$family
-      )
+    if(sev_family$family == "gaussian"){
+
+      sev_dist = "neg_binomial"
+
+    }else if(sev_family$family == "Gamma"){
+
+      sev_dist = "gamma"
+
+    }else if(sev_family$family == "custom"){
+
+      sev_dist = sev_family$name
+
+    }else{
+
+      sev_dist = sev_family$family
+
+    }
+
+    ## Frequency Distribution Name
+
+    if(freq_family$family == "negbinomial"){
+
+      freq_dist = "neg_binomial"
+
+    }else if(freq_family$family == "custom"){
+
+      freq_dist = freq_family$name
+
+    }else{
+
+      freq_dist = freq_family$family
+
+    }
 
     sev_resp = sev_formula$resp
     freq_resp = freq_formula$resp
@@ -698,7 +721,8 @@ brms_freq_sev =
       stanvar(
         x = full_data[[ded_name]],
         name = "ded"
-      )
+      ),
+      stanvars
     )
 
     ## Setup Stan Code and Data
