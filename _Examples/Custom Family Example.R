@@ -54,7 +54,9 @@ mu_fun = function(expo, region){
   c(EMEA = 8, USC = 9)[region]
 }
 
-sev_par2_vec = exp(c(EMEA = 0, USC = 0))
+sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+
+alpha_vec = expp1(c(EMEA = -1, USC = -0.5))
 
 sev_data =
   data.frame(
@@ -74,11 +76,13 @@ sev_data =
           seq(freq_n),
           function(i){
 
-            rlnorm(freq_data$claimcount_fgu[i],
+            rlnormpower(
+              freq_data$claimcount_fgu[i],
                    mu_fun(freq_data$expo[i],
                             freq_data$region[i]),
-                   sev_par2_vec[freq_data$region[i]]
-                   )
+              sigma_vec[freq_data$region[i]],
+              alpha_vec[freq_data$region[i]]
+              )
 
           }
         )
@@ -113,42 +117,6 @@ freq_data_net =
     claimcount = coalesce(claimcount, 0)
   )
 
-#### Custom Family ####
-
-# define a custom family
-lognormal2 <-
-  function(link = "identity"){
-
-    custom_family(
-      "lognormal2",
-      dpars = c("mu"),
-      links = c(link),
-      lb = c(NA),
-      type = "real"
-    )
-
-  }
-
-# define the corresponding Stan density function
-stan_density <- "
-  real lognormal2_lpdf(real y, real mu) {
-    return lognormal_lpdf(y | mu, 1);
-  }
-
-  real lognormal2_lcdf(real y, real mu) {
-    return lognormal_lcdf(y | mu, 1);
-  }
-
-  real lognormal2_lccdf(real y, real mu) {
-    return lognormal_lccdf(y | mu, 1);
-  }
-
-  real lognormal2_cdf(real y, real mu) {
-    return lognormal_cdf(y, mu, 1);
-  }
-"
-stanvars <- stanvar(scode = stan_density, block = "functions")
-
 #### Run Model ####
 
 mv_model_fit =
@@ -159,11 +127,13 @@ mv_model_fit =
 
     sev_formula =
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
-           1 + region
+           1 + region,
+         sigma ~ 1 + region,
+         alpha ~ 1 + region
       ),
 
     freq_family = poisson(),
-    sev_family = lognormal2(),
+    sev_family = bayesact::lnormpower(),
 
     freq_data = freq_data_net,
     sev_data = sev_data,
@@ -171,14 +141,34 @@ mv_model_fit =
     prior = c(prior(normal(0, 1),
                      class = Intercept,
                      resp = claimcount),
-
                prior(normal(0, 1),
                      class = b,
                      resp = claimcount),
 
-               prior(normal(8, 1),
-                     class = Intercept,
-                     resp = loss)
+              prior(normal(8, 1),
+                    class = Intercept,
+                    resp = loss),
+              prior(normal(0, 1),
+                    class = b,
+                    resp = loss),
+
+              prior(normal(0, 1),
+                    class = Intercept,
+                    resp = loss,
+                    dpar = sigma),
+              prior(normal(0, 0.5),
+                    class = b,
+                    resp = loss,
+                    dpar = sigma),
+
+              prior(normal(-1, 1),
+                    class = Intercept,
+                    resp = loss,
+                    dpar = alpha),
+              prior(normal(0, 0.5),
+                    class = b,
+                    resp = loss,
+                    dpar = alpha)
     ),
 
     ded_name = "ded",
@@ -186,15 +176,15 @@ mv_model_fit =
     use_cmdstan = F,
 
     chains = 1,
-    iter = 300,
-    warmup = 150,
+    iter = 1000,
+    warmup = 500,
 
     refresh = 100,
 
     mle = FALSE,
     sample_prior = "no",
     freq_adj_fun = NULL,
-    stanvars     = stanvars
+    stanvars     = lnormpower_stanvars
   )
 
 #### Results ####
