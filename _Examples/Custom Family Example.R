@@ -54,9 +54,9 @@ mu_fun = function(expo, region){
   c(EMEA = 8, USC = 9)[region]
 }
 
-sigma_vec = exp(c(EMEA = 0, USC = 0.4))
+sigma_vec = exp(c(EMEA = 0, USC = 0))
 
-alpha_vec = expp1(c(EMEA = -1, USC = -0.5))
+alpha_vec = expp1(c(EMEA = -1, USC = -1))
 
 sev_data =
   data.frame(
@@ -128,8 +128,8 @@ mv_model_fit =
     sev_formula =
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
            1 + region,
-         sigma ~ 1 + region,
-         alpha ~ 1 + region
+         sigma ~ 1,
+         alpha ~ 1
       ),
 
     freq_family = poisson(),
@@ -156,17 +156,9 @@ mv_model_fit =
                     class = Intercept,
                     resp = loss,
                     dpar = sigma),
-              prior(normal(0, 0.5),
-                    class = b,
-                    resp = loss,
-                    dpar = sigma),
 
               prior(normal(-1, 1),
                     class = Intercept,
-                    resp = loss,
-                    dpar = alpha),
-              prior(normal(0, 0.5),
-                    class = b,
                     resp = loss,
                     dpar = alpha)
     ),
@@ -198,6 +190,10 @@ model_post_samples =
     s1_usc  = b_loss_s1_Intercept +
       b_loss_s1_regionUSC,
 
+    sigma = exp(b_sigma_loss_Intercept),
+
+    alpha = exp(b_alpha_loss_Intercept) - 1,
+
     f1_emea = exp(b_claimcount_f1_Intercept),
     f1_usc  = exp(b_claimcount_f1_Intercept +
                     b_claimcount_f1_regionUSC)
@@ -215,6 +211,10 @@ model_output =
     data.frame(
       s1_emea = mu_fun(1, "EMEA"),
       s1_usc  = mu_fun(1, "USC"),
+
+      sigma = sigma_vec["EMEA"],
+
+      alpha = alpha_vec["EMEA"],
 
       f1_emea = freq_mu_fun(1, "EMEA"),
       f1_usc  = freq_mu_fun(1, "USC")

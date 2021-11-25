@@ -7,5 +7,11 @@
 dlnormpower(x, mu = 0, sigma = 1, alpha = 1)
 }
 \description{
-Modified Log-Normal Power Law Distribution
+Density, distribution function and random
+generation for the log normal power law distribution.
+
+This is based on applications to modelling masses of stars
+(https://iopscience.iop.org/article/10.3847/1538-4357/ab88a6) but is also
+applicable to insurance losses to model both attrirtional and large losses
+in one distribution.
 }

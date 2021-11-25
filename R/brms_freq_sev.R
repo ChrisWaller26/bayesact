@@ -239,6 +239,7 @@ brms_freq_sev =
     sample_prior = "no",
     ded_adj_min  = 0,
     seed         = sample.int(.Machine$integer.max, 1),
+    save_pars    = save_pars(all = FALSE),
     ...
   ){
 
@@ -747,7 +748,8 @@ brms_freq_sev =
         data = full_data,
         prior = prior,
         stanvars = stanvars,
-        sample_prior = sample_prior
+        sample_prior = sample_prior,
+        save_pars = save_pars
       )
 
     mv_model_data =
@@ -756,7 +758,8 @@ brms_freq_sev =
         data = full_data,
         prior = prior,
         stanvars = stanvars,
-        sample_prior = sample_prior
+        sample_prior = sample_prior,
+        save_pars = save_pars
       )
 
     mv_model_fit <-
@@ -764,7 +767,8 @@ brms_freq_sev =
            data = full_data,
            prior = prior,
            sample_prior = sample_prior,
-           empty = TRUE
+           empty = TRUE,
+           save_pars = save_pars
       )
 
     ## Extract Info from Formula Functions
