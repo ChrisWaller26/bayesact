@@ -22,6 +22,7 @@ brms_freq_sev(
   sample_prior = "no",
   ded_adj_min = 0,
   seed = sample.int(.Machine$integer.max, 1),
+  save_pars = save_pars(all = FALSE),
   ...
 )
 }
