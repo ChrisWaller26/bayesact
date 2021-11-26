@@ -330,9 +330,13 @@ brms_freq_sev =
 
     ## Severity Distribution Name
 
-    if(sev_family$family == "gaussian"){
+    if(sev_family$family == "negbinomial"){
 
       sev_dist = "neg_binomial"
+
+    }else if(sev_family$family == "gaussian"){
+
+      sev_dist = "normal"
 
     }else if(sev_family$family == "Gamma"){
 
