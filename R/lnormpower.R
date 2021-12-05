@@ -35,6 +35,12 @@ lnormpower_exp = function(mu = 0, sigma = 1, alpha = 1){
   alpha / (alpha - 1) * exp(0.5 * sigma ^ 2 + mu)
 
 }
+#' @export
+lnormpower_mk = function(k = 1, mu = 0, sigma = 1, alpha = 1){
+
+  alpha / (alpha - k) * exp(0.5 * k ^ 2 * sigma ^ 2 + mu * k)
+
+}
 #'
 #' LogNormal-Power BRMS Custom Family
 #'
@@ -116,3 +122,41 @@ lnormpower_stan_funs <- "
 #' @export
 lnormpower_stanvars <- brms::stanvar(scode = lnormpower_stan_funs, block = "functions")
 
+#'
+#' LogNormal-Power Expectation
+#'
+#' @export
+posterior_epred_lnormpower <- function(prep) {
+  mu <- brms::get_dpar(prep, "mu")
+  sigma <- brms::get_dpar(prep, "sigma")
+  alpha <- brms::get_dpar(prep, "alpha")
+  dims = dim(mu)
+
+  matrix(lnormpower_exp(c(mu), c(sigma), c(alpha)),
+         nrow = dims[1],
+         ncol = dims[2])
+}
+
+#'
+#' LogNormal-Power Predictions
+#'
+#' @export
+posterior_predict_lnormpower <- function(i, prep, ...) {
+  mu <- brms::get_dpar(prep, "mu", i = i)
+  sigma <- brms::get_dpar(prep, "sigma", i = i)
+  alpha <- brms::get_dpar(prep, "alpha", i = i)
+  rlnormpower(length(mu), mu, sigma, alpha)
+}
+
+#'
+#' LogNormal-Power Log-Likelihood
+#'
+#' @export
+log_lik_lnormpower <- function(i, prep) {
+  mu <- brms::get_dpar(prep, "mu", i = i)
+  sigma <- brms::get_dpar(prep, "sigma", i = i)
+  alpha <- brms::get_dpar(prep, "alpha", i = i)
+
+  y <- prep$data$Y[i]
+  log(dlnormpower(y, mu, sigma, alpha))
+}

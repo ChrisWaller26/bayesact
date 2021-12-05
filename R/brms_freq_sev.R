@@ -220,7 +220,7 @@
 #'
 #' @export
 #'
-brms_freq_sev =
+brms_freq_sev_2 =
   function(
     freq_formula = NULL,
     sev_formula  = NULL,
@@ -751,7 +751,7 @@ brms_freq_sev =
         mv_model_formula,
         data = full_data,
         prior = prior,
-        stanvars = stanvars,
+        # stanvars = stanvars,
         sample_prior = sample_prior,
         save_pars = save_pars
       )
@@ -761,7 +761,7 @@ brms_freq_sev =
         mv_model_formula,
         data = full_data,
         prior = prior,
-        stanvars = stanvars,
+        # stanvars = stanvars,
         sample_prior = sample_prior,
         save_pars = save_pars
       )
@@ -830,7 +830,7 @@ brms_freq_sev =
 
       freq_adj_fun =
         str_glue(
-          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(ded[n] | {sev_arg_stan})))"
+          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(lb_loss[n] | {sev_arg_stan})))"
         )
 
     }
