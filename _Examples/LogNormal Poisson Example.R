@@ -9,8 +9,6 @@ library(rstan)
 library(rstanarm)
 library(readr)
 
-library(renv)
-
 # Package created in this repo
 
 library(bayesact)
@@ -33,8 +31,8 @@ freq_n = 5e3
 # Defines a non-linear function for lambda to test model still works
 
 freq_mu_fun = function(expo, region){
-  exp(c(EMEA = 1, USC = 1.4)[region]) 
-} 
+  exp(c(EMEA = 1, USC = 1.4)[region])
+}
 
 freq_data =
   data.frame(
@@ -46,7 +44,7 @@ freq_data =
   ) %>%
   mutate(
     freq_mu = freq_mu_fun(expo, region),
-    claimcount_fgu = 
+    claimcount_fgu =
       rpois(freq_n, freq_mu)
   )
 
@@ -75,20 +73,20 @@ sev_data =
         lapply(
           seq(freq_n),
           function(i){
-            
-            rlnorm(freq_data$claimcount_fgu[i], 
+
+            rlnorm(freq_data$claimcount_fgu[i],
                    mu_fun(freq_data$expo[i],
                             freq_data$region[i]),
                    sev_par2_vec[freq_data$region[i]]
                    )
-            
+
           }
         )
       )
   ) %>%
   mutate(
     pol_id = rep(seq(freq_n), freq_data$claimcount_fgu)
-  ) %>% 
+  ) %>%
   filter(
     loss_uncapped > ded
   ) %>%
@@ -118,65 +116,131 @@ freq_data_net =
 #### Run Model ####
 
 mv_model_fit =
-  brms_freq_sev(
-    
-    freq_formula = 
+  brms_freq_sev_2(
+
+    freq_formula =
       bf(claimcount ~ 1 + region,
          center = TRUE),
-    
-    sev_formula = 
-      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~ 
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
            1 + region,
          sigma ~ 1 + region,
          center = TRUE
       ),
-    
+
     freq_family = poisson(),
     sev_family = lognormal(),
-    
+
     freq_data = freq_data_net,
     sev_data = sev_data,
-    
+
     prior = c(prior(normal(0, 1),
-                     class = Intercept,
-                     resp = claimcount),
-               
-               prior(normal(0, 1),
-                     class = b,
-                     resp = claimcount),
-               
-               prior(normal(8, 1),
-                     class = Intercept,
-                     resp = loss),
-               
-               prior(normal(0, 0.5),
-                     class = Intercept,
-                     dpar = sigma,
-                     resp = loss),
-               
-               prior(normal(0, 0.5),
-                     class = b,
-                     dpar = sigma,
-                     resp = loss)
+                    class = Intercept,
+                    resp = claimcount),
+
+              prior(normal(0, 1),
+                    class = b,
+                    resp = claimcount),
+
+              prior(normal(8, 1),
+                    class = Intercept,
+                    resp = loss),
+
+              prior(normal(0, 0.5),
+                    class = Intercept,
+                    dpar = sigma,
+                    resp = loss),
+
+              prior(normal(0, 0.5),
+                    class = b,
+                    dpar = sigma,
+                    resp = loss)
     ),
-    
+
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    use_cmdstan = T,
-    
+    use_cmdstan = F,
+
     chains = 1,
     iter = 300,
     warmup = 150,
 
     refresh = 100,
-    adapt_delta = 0.8,
-    max_treedepth = 10,
-    
+    control = list(adapt_delta = 0.8,
+                   max_treedepth = 10),
+
     mle = FALSE,
     sample_prior = "no",
     freq_adj_fun = NULL,
-    stanvars     = NULL
+    stanvars     = NULL,
+
+    save_pars = save_pars(all = TRUE)
   )
+
+mv_model_fit_1 =
+  brms_freq_sev_2(
+
+    freq_formula =
+      bf(claimcount ~ 1 ,
+         center = TRUE),
+
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1 ,
+         sigma ~ 1
+      ),
+
+    freq_family = poisson(),
+    sev_family = lognormal(),
+
+    freq_data = freq_data_net,
+    sev_data = sev_data,
+
+    prior = c(prior(normal(0, 1),
+                    class = Intercept,
+                    resp = claimcount),
+
+              prior(normal(8, 1),
+                    class = Intercept,
+                    resp = loss),
+
+              prior(normal(0, 0.5),
+                    class = Intercept,
+                    dpar = sigma,
+                    resp = loss)
+    ),
+
+    ded_name = "ded",
+    ded_adj_min = 0.0001,
+    use_cmdstan = F,
+
+    chains = 1,
+    iter = 300,
+    warmup = 150,
+
+    refresh = 100,
+    control = list(adapt_delta = 0.8,
+                   max_treedepth = 10),
+
+    mle = FALSE,
+    sample_prior = "no",
+    freq_adj_fun = NULL,
+    stanvars     = NULL,
+
+    save_pars = save_pars(all = TRUE)
+  )
+
+#### Bayes Factor ####
+
+bayes_fac =
+  bayes_factor(
+    mv_model_fit,
+    mv_model_fit_1
+  )
+
+
+
 
 #### Results ####
 
@@ -185,16 +249,16 @@ model_post_samples =
     mv_model_fit
   ) %>%
   transmute(
-    s1_emea = b_loss_s1_Intercept, 
+    s1_emea = b_loss_s1_Intercept,
     s1_usc  = b_loss_s1_Intercept +
       b_loss_s1_regionUSC,
-    
-    sigma_emea = exp(b_sigma_loss_Intercept), 
-    sigma_usc  = exp(b_sigma_loss_Intercept 
+
+    sigma_emea = exp(b_sigma_loss_Intercept),
+    sigma_usc  = exp(b_sigma_loss_Intercept
                      + b_sigma_loss_regionUSC
                      ),
-    
-    f1_emea = exp(b_claimcount_f1_Intercept), 
+
+    f1_emea = exp(b_claimcount_f1_Intercept),
     f1_usc  = exp(b_claimcount_f1_Intercept +
                     b_claimcount_f1_regionUSC)
   )
@@ -209,18 +273,18 @@ model_output =
   as.data.frame() %>%
   bind_rows(
     data.frame(
-      s1_emea = mu_fun(1, "EMEA"), 
+      s1_emea = mu_fun(1, "EMEA"),
       s1_usc  = mu_fun(1, "USC"),
-      
-      sigma_emea = sev_par2_vec["EMEA"], 
+
+      sigma_emea = sev_par2_vec["EMEA"],
       sigma_usc  = sev_par2_vec["USC"],
-      
-      f1_emea = freq_mu_fun(1, "EMEA"), 
+
+      f1_emea = freq_mu_fun(1, "EMEA"),
       f1_usc  = freq_mu_fun(1, "USC")
     )
   )
 
-rownames(model_output) = 
+rownames(model_output) =
   c("Lower 2.5%",
     "Mean",
     "Upper 97.5%",
