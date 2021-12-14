@@ -166,7 +166,7 @@ mv_model_fit_prior =
 
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    backend = "rstan",
+    backend = "cmdstanr",
 
     chains = 1,
     iter = 300,
@@ -194,10 +194,16 @@ mv_model_fit =
 
 #### LOOIC ####
 
-model_loo =
+model_loo_freq =
   bayesact::loo(
     mv_model_fit,
     resp = "claimcount"
+  )
+
+model_loo_sev =
+  bayesact::loo(
+    mv_model_fit,
+    resp = "loss"
   )
 
 #### Results ####

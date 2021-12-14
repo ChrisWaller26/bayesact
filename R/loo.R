@@ -1,10 +1,10 @@
 #' Leave One Out Criterion for Bayesact Class
 #'
 #' @export
+#'
 loo = function(x, resp, sev_samples = NULL, ...){
 
   if(is.bayesact(x)){
-
 
     freq_link = get(x$bayesact$freq_family$link)
 
@@ -33,9 +33,6 @@ loo = function(x, resp, sev_samples = NULL, ...){
       )
 
     }else{
-
-      #' Need to adapt: does not currently adjust frequency parameter for
-      #' left-truncation at deductible
 
       new_freq_data =
         x$data %>%
