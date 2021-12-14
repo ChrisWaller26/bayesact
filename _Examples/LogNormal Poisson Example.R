@@ -115,8 +115,10 @@ freq_data_net =
 
 #### Run Model ####
 
-mv_model_fit =
-  brms_freq_sev_2(
+## Prior Only
+
+mv_model_fit_prior =
+  brms_freq_sev(
 
     freq_formula =
       bf(claimcount ~ 1 + region,
@@ -135,7 +137,7 @@ mv_model_fit =
     freq_data = freq_data_net,
     sev_data = sev_data,
 
-    prior = c(prior(normal(0, 1),
+    prior = c(prior(normal(0, 0.5),
                     class = Intercept,
                     resp = claimcount),
 
@@ -143,11 +145,15 @@ mv_model_fit =
                     class = b,
                     resp = claimcount),
 
-              prior(normal(8, 1),
+              prior(normal(8, 0.5),
                     class = Intercept,
                     resp = loss),
 
-              prior(normal(0, 0.5),
+              prior(normal(0, 1),
+                    class = b,
+                    resp = loss),
+
+              prior(normal(0, 0.25),
                     class = Intercept,
                     dpar = sigma,
                     resp = loss),
@@ -160,87 +166,31 @@ mv_model_fit =
 
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    use_cmdstan = F,
+    backend = "cmdstanr",
 
     chains = 1,
     iter = 300,
     warmup = 150,
 
     refresh = 100,
-    control = list(adapt_delta = 0.8,
-                   max_treedepth = 10),
+    adapt_delta = 0.8,
+    max_treedepth = 10,
 
     mle = FALSE,
-    sample_prior = "no",
+    sample_prior = "only",
     freq_adj_fun = NULL,
     stanvars     = NULL,
 
     save_pars = save_pars(all = TRUE)
   )
 
-mv_model_fit_1 =
-  brms_freq_sev_2(
 
-    freq_formula =
-      bf(claimcount ~ 1 ,
-         center = TRUE),
+#### Update Function ####
 
-    sev_formula =
-      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
-           1 ,
-         sigma ~ 1
-      ),
-
-    freq_family = poisson(),
-    sev_family = lognormal(),
-
-    freq_data = freq_data_net,
-    sev_data = sev_data,
-
-    prior = c(prior(normal(0, 1),
-                    class = Intercept,
-                    resp = claimcount),
-
-              prior(normal(8, 1),
-                    class = Intercept,
-                    resp = loss),
-
-              prior(normal(0, 0.5),
-                    class = Intercept,
-                    dpar = sigma,
-                    resp = loss)
-    ),
-
-    ded_name = "ded",
-    ded_adj_min = 0.0001,
-    use_cmdstan = F,
-
-    chains = 1,
-    iter = 300,
-    warmup = 150,
-
-    refresh = 100,
-    control = list(adapt_delta = 0.8,
-                   max_treedepth = 10),
-
-    mle = FALSE,
-    sample_prior = "no",
-    freq_adj_fun = NULL,
-    stanvars     = NULL,
-
-    save_pars = save_pars(all = TRUE)
-  )
-
-#### Bayes Factor ####
-
-bayes_fac =
-  bayes_factor(
-    mv_model_fit,
-    mv_model_fit_1
-  )
-
-
-
+mv_model_fit =
+  bayesact::update(
+    mv_model_fit_prior,
+    sample_prior = "no")
 
 #### Results ####
 

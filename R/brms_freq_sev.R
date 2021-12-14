@@ -17,7 +17,6 @@
 #' @param prior       BRMS Prior; The set of priors for both the frequency and severity models
 #' @param ded_name     Character; The column name for the deductible/excess/attachment point in the frequency data
 #' @param freq_adj_fun Character; The Stan function used to adjust the mean frequency parameter. If NULL, the survival function of the severity model at the deductible will be used.
-#' @param use_cmdstan  Boolean; Determines whether to compile the model using cmdstanr instead of rstan. The former is generally much faster and benefits from better parallelisation.
 #' @param mle          Boolean; If TRUE, the optimize function is used to create parameter point estimates via Maximum-Likelihood Estimation
 #' @param ded_adj_min  Numeric; The minimum value the deductible adjustment can be. This can help when some deductibles are very high.
 #' @param ...          Additional accepted BRMS fit parameters
@@ -167,7 +166,7 @@
 #'
 #'     ded_name = "ded",
 #'
-#'     use_cmdstan = TRUE,
+#'     backend = "cmdstanr",
 #'
 #'     chains = 4,
 #'     iter = 1000,
@@ -220,7 +219,7 @@
 #'
 #' @export
 #'
-brms_freq_sev_2 =
+brms_freq_sev =
   function(
     freq_formula = NULL,
     sev_formula  = NULL,
@@ -232,12 +231,17 @@ brms_freq_sev_2 =
     ded_name     = "ded",
     freq_adj_fun = NULL,
     stanvars     = NULL,
-    use_cmdstan  = FALSE,
     mle          = FALSE,
+    chains       = 2,
     iter         = 1000,
     warmup       = 250,
+    refresh      = 100,
     sample_prior = "no",
     ded_adj_min  = 0,
+    backend      = "rstan",
+    adapt_delta   = 0.8,
+    max_treedepth = 8,
+    control      = NULL,
     seed         = sample.int(.Machine$integer.max, 1),
     save_pars    = save_pars(all = FALSE),
     ...
@@ -252,11 +256,37 @@ brms_freq_sev_2 =
     library(rstanarm)
     library(readr)
 
-    if(use_cmdstan){
+    if(backend == "cmdstanr"){
 
       library(cmdstanr)
 
     }
+
+    #### Save input arguments
+
+    input_args =
+      list(
+        freq_formula  = freq_formula,
+        sev_formula   = sev_formula,
+        freq_family   = freq_family,
+        sev_family    = sev_family,
+        freq_data     = freq_data,
+        sev_data      = sev_data,
+        ded_name      = ded_name,
+        freq_adj_fun  = freq_adj_fun,
+        mle           = mle,
+        ded_adj_min   = ded_adj_min,
+        prior         = prior,
+        chains        = chains,
+        iter          = iter,
+        warmup        = warmup,
+        refresh       = refresh,
+        adapt_delta   = adapt_delta,
+        max_treedepth = max_treedepth,
+        sample_prior  = sample_prior,
+        stanvars      = stanvars,
+        control       = control
+      )
 
     #### Error Checks ####
 
@@ -751,7 +781,8 @@ brms_freq_sev_2 =
         mv_model_formula,
         data = full_data,
         prior = prior,
-        # stanvars = stanvars,
+        stanvars = stanvars,
+        backend = backend,
         sample_prior = sample_prior,
         save_pars = save_pars
       )
@@ -761,7 +792,8 @@ brms_freq_sev_2 =
         mv_model_formula,
         data = full_data,
         prior = prior,
-        # stanvars = stanvars,
+        stanvars = stanvars,
+        backend = backend,
         sample_prior = sample_prior,
         save_pars = save_pars
       )
@@ -772,6 +804,7 @@ brms_freq_sev_2 =
            prior = prior,
            sample_prior = sample_prior,
            empty = TRUE,
+           backend = backend,
            save_pars = save_pars
       )
 
@@ -916,7 +949,7 @@ brms_freq_sev_2 =
         fixed = TRUE
       )
 
-    if(use_cmdstan & !mle){
+    if(backend == "cmdstanr" & !mle){
 
       stan_file = write_stan_file(adjusted_code)
       stan_model = cmdstan_model(stan_file)
@@ -927,6 +960,9 @@ brms_freq_sev_2 =
           iter_warmup = warmup,
           iter_sampling = (iter - warmup),
           seed = seed,
+          chains = chains,
+          adapt_delta = adapt_delta,
+          max_treedepth = max_treedepth,
           ...
         )
 
@@ -954,6 +990,8 @@ brms_freq_sev_2 =
           warmup = warmup,
           iter = iter,
           seed = seed,
+          chains = chains,
+          control = control,
           ...
         )
 
@@ -967,7 +1005,7 @@ brms_freq_sev_2 =
 
       mv_model_fit <- rename_pars(mv_model_fit)
 
-    }else if(use_cmdstan){
+    }else if(backend == "cmdstanr"){
 
       stan_file = write_stan_file(adjusted_code)
       stan_model = cmdstan_model(stan_file)
@@ -1001,6 +1039,10 @@ brms_freq_sev_2 =
           )
           )
     }
+
+    mv_model_fit$bayesact = input_args
+
+    class(mv_model_fit) = c(class(mv_model_fit), "bayesact")
 
     return(mv_model_fit)
 
