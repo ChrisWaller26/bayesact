@@ -166,7 +166,7 @@ mv_model_fit_prior =
 
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    backend = "cmdstanr",
+    backend = "rstan",
 
     chains = 1,
     iter = 300,
@@ -191,6 +191,14 @@ mv_model_fit =
   bayesact::update(
     mv_model_fit_prior,
     sample_prior = "no")
+
+#### LOOIC ####
+
+model_loo =
+  bayesact::loo(
+    mv_model_fit,
+    resp = "claimcount"
+  )
 
 #### Results ####
 
