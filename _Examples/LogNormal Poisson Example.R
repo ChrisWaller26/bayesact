@@ -192,6 +192,14 @@ mv_model_fit =
     mv_model_fit_prior,
     sample_prior = "no")
 
+#### LOOIC ####
+
+model_loo =
+  bayesact::loo(
+    mv_model_fit,
+    resp = "claimcount"
+  )
+
 #### Results ####
 
 model_post_samples =
