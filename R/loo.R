@@ -5,6 +5,7 @@ loo = function(x, resp, sev_samples = NULL, ...){
 
   if(is.bayesact(x)){
 
+
     freq_link = get(x$bayesact$freq_family$link)
 
     sev_resp = x$bayesact$sev_formula$resp
@@ -126,10 +127,9 @@ loo = function(x, resp, sev_samples = NULL, ...){
                           get(sev_pars[2]),
                           get(sev_pars[3])))
         ) %>%
-        select(
-          -iter_number
+        group_by_at(
+          names(new_freq_data)
         ) %>%
-        group_by_all() %>%
         summarise(
           ded_offset = mean(freq_link(ded_offset)),
           .groups = "keep"
@@ -152,22 +152,42 @@ loo = function(x, resp, sev_samples = NULL, ...){
 
       cat("Recompiling frequency model\n\n")
 
-      x_freq =
-        brm(
-          formula       = new_freq_formula,
-          family        = x$bayesact$freq_family,
-          data          = new_freq_data,
-          prior         = freq_prior,
-          chains        = x$bayesact$chains,
-          iter          = x$bayesact$iter,
-          warmup        = x$bayesact$warmup,
-          adapt_delta   = x$bayesact$adapt_delta,
-          max_treedepth = x$bayesact$max_treedepth,
-          sample_prior  = x$bayesact$sample_prior,
-          stanvars      = x$bayesact$stanvars,
-          control       = x$bayesact$control,
-          backend       = x$backend
-        )
+      if(x$backend == "rstan"){
+
+        x_freq =
+          brm(
+            formula       = new_freq_formula,
+            family        = x$bayesact$freq_family,
+            data          = new_freq_data,
+            prior         = freq_prior,
+            chains        = x$bayesact$chains,
+            iter          = x$bayesact$iter,
+            warmup        = x$bayesact$warmup,
+            sample_prior  = x$bayesact$sample_prior,
+            stanvars      = x$bayesact$stanvars,
+            control       = x$bayesact$control,
+            backend       = x$backend
+          )
+
+      }else{
+
+        x_freq =
+          brm(
+            formula       = new_freq_formula,
+            family        = x$bayesact$freq_family,
+            data          = new_freq_data,
+            prior         = freq_prior,
+            chains        = x$bayesact$chains,
+            iter          = x$bayesact$iter,
+            warmup        = x$bayesact$warmup,
+            adapt_delta   = x$bayesact$adapt_delta,
+            max_treedepth = x$bayesact$max_treedepth,
+            sample_prior  = x$bayesact$sample_prior,
+            stanvars      = x$bayesact$stanvars,
+            backend       = x$backend
+          )
+
+      }
 
       cat("Running LOO Function...\n\n")
 

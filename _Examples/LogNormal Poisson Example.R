@@ -166,7 +166,7 @@ mv_model_fit_prior =
 
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    backend = "cmdstanr",
+    backend = "rstan",
 
     chains = 1,
     iter = 300,
