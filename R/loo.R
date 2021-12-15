@@ -2,7 +2,7 @@
 #'
 #' @export
 #'
-loo = function(x, resp, sev_samples = NULL, ...){
+loo = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
 
   if(is.bayesact(x)){
 

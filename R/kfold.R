@@ -2,7 +2,7 @@
 #'
 #' @export
 #'
-kfold = function(x, resp, sev_samples = NULL, ...){
+kfold = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
 
   if(is.bayesact(x)){
 
@@ -25,7 +25,7 @@ kfold = function(x, resp, sev_samples = NULL, ...){
 
     if(freq_sev == "sev"){
 
-      brms::loo(
+      brms::kfold(
         x = x,
         resp = resp,
         newdata = x$data %>% filter(freq == 0),
