@@ -4,7 +4,7 @@
 \alias{kfold}
 \title{K-Fold Cross Validation for Bayesact Class}
 \usage{
-kfold(x, resp, sev_samples = NULL, ...)
+kfold(x, resp, newdata = NULL, sev_samples = NULL, ...)
 }
 \description{
 K-Fold Cross Validation for Bayesact Class

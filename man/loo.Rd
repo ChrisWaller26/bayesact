@@ -4,7 +4,7 @@
 \alias{loo}
 \title{Leave One Out Criterion for Bayesact Class}
 \usage{
-loo(x, resp, sev_samples = NULL, ...)
+loo(x, resp, newdata = NULL, sev_samples = NULL, ...)
 }
 \description{
 Leave One Out Criterion for Bayesact Class
