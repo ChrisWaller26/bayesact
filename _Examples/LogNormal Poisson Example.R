@@ -206,6 +206,22 @@ model_loo_sev =
     resp = "loss"
   )
 
+#### K-Fold Cross Validation ####
+
+model_cv_freq =
+  bayesact::kfold(
+    mv_model_fit,
+    K = 5,
+    resp = "claimcount"
+  )
+
+model_cv_sev =
+  bayesact::kfold(
+    mv_model_fit,
+    K = 5,
+    resp = "loss"
+  )
+
 #### Results ####
 
 model_post_samples =
