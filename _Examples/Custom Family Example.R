@@ -176,7 +176,8 @@ mv_model_fit =
     mle = FALSE,
     sample_prior = "no",
     freq_adj_fun = NULL,
-    stanvars     = lnormpower_stanvars
+    stanvars     = lnormpower_stanvars,
+    seed = 1
   )
 
 #### Results ####

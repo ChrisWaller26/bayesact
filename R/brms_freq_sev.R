@@ -243,7 +243,7 @@ brms_freq_sev =
     max_treedepth = 8,
     control      = NULL,
     seed         = sample.int(.Machine$integer.max, 1),
-    save_pars    = save_pars(all = FALSE),
+    save_pars    = NULL,
     ...
   ){
 
@@ -863,7 +863,7 @@ brms_freq_sev =
 
       freq_adj_fun =
         str_glue(
-          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(lb_loss[n] | {sev_arg_stan})))"
+          "fmax({ded_adj_min}, exp({sev_dist}_lccdf(lb_{sev_resp}[n] | {sev_arg_stan})))"
         )
 
     }
@@ -922,17 +922,33 @@ brms_freq_sev =
       ) %>%
       str_flatten("\n")
 
+
+    ###
+
+    model_loc_start =
+      str_locate(
+        mv_model_code,
+        "model \\{"
+      )[[1,"end"]]
+
+    ###
+
     freq_adj_code_lccdf =
-      gsub(
-        str_glue("  {sev_dist}_lccdf"),
-        str_glue("  weights_{sev_resp}[n] * {sev_dist}_lccdf"),
-
+      paste0(
+        substr(freq_adj_code, 1, model_loc_start - 1),
         gsub(
-          str_glue("  {freq_dist}_lccdf"),
-          str_glue("  weights_{freq_resp}[n] * {freq_dist}_lccdf"),
-          freq_adj_code
-        )
+          str_glue("  {sev_dist}_lccdf"),
+          str_glue("  weights_{sev_resp}[n] * {sev_dist}_lccdf"),
 
+          gsub(
+            str_glue("  {freq_dist}_lccdf"),
+            str_glue("  weights_{freq_resp}[n] * {freq_dist}_lccdf"),
+            substr(
+              freq_adj_code,
+              model_loc_start,
+              1e6)
+          )
+        )
       )
 
     adjusted_code =
