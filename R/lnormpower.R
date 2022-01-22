@@ -131,6 +131,16 @@ posterior_epred_lnormpower <- function(prep) {
   sigma <- brms::get_dpar(prep, "sigma")
   alpha <- brms::get_dpar(prep, "alpha")
   dims = dim(mu)
+  lb <-
+    case_when(
+      is.null(prep$data$lb) ~ 0,
+      TRUE ~ prep$data$lb
+    )
+  ub <-
+    case_when(
+      is.null(prep$data$ub) ~ Inf,
+      TRUE ~ prep$data$ub
+    )
 
   matrix(lnormpower_exp(c(mu), c(sigma), c(alpha)),
          nrow = dims[1],
@@ -145,6 +155,16 @@ posterior_predict_lnormpower <- function(i, prep, ...) {
   mu <- brms::get_dpar(prep, "mu", i = i)
   sigma <- brms::get_dpar(prep, "sigma", i = i)
   alpha <- brms::get_dpar(prep, "alpha", i = i)
+  lb <-
+    case_when(
+      is.null(prep$data$lb[i]) ~ 0,
+      TRUE ~ prep$data$lb[i]
+    )
+  ub <-
+    case_when(
+      is.null(prep$data$ub[i]) ~ Inf,
+      TRUE ~ prep$data$ub[i]
+    )
   rlnormpower(length(mu), mu, sigma, alpha)
 }
 
@@ -156,7 +176,18 @@ log_lik_lnormpower <- function(i, prep) {
   mu <- brms::get_dpar(prep, "mu", i = i)
   sigma <- brms::get_dpar(prep, "sigma", i = i)
   alpha <- brms::get_dpar(prep, "alpha", i = i)
-
+  lb <-
+    case_when(
+      is.null(prep$data$lb[i]) ~ 0,
+      TRUE ~ prep$data$lb[i]
+    )
+  ub <-
+    case_when(
+      is.null(prep$data$ub[i]) ~ Inf,
+      TRUE ~ prep$data$ub[i]
+    )
   y <- prep$data$Y[i]
-  log(dlnormpower(y, mu, sigma, alpha))
+  log(dlnormpower(y, mu, sigma, alpha)) -
+    log(plnormpower(ub, mu, sigma, alpha) -
+          plnormpower(lb, mu, sigma, alpha))
 }

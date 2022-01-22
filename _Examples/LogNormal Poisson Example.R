@@ -121,14 +121,12 @@ mv_model_fit_prior =
   brms_freq_sev(
 
     freq_formula =
-      bf(claimcount ~ 1 + region,
-         center = TRUE),
+      bf(claimcount ~ 1 + region),
 
     sev_formula =
       bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
            1 + region,
-         sigma ~ 1 + region,
-         center = TRUE
+         sigma ~ 1 + region
       ),
 
     freq_family = poisson(),
@@ -168,9 +166,9 @@ mv_model_fit_prior =
     ded_adj_min = 0.0001,
     backend = "cmdstanr",
 
-    chains = 1,
-    iter = 300,
-    warmup = 150,
+    chains = 4,
+    iter = 2000,
+    warmup = 500,
 
     refresh = 100,
     adapt_delta = 0.8,
@@ -181,7 +179,8 @@ mv_model_fit_prior =
     freq_adj_fun = NULL,
     stanvars     = NULL,
 
-    save_pars = save_pars(all = TRUE)
+    save_pars = save_pars(all = TRUE),
+    seed = 1
   )
 
 
