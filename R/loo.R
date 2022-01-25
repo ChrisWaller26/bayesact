@@ -2,7 +2,13 @@
 #'
 #' @export
 #'
-loo = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
+loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, ...){
+
+  if(is.null(resp)){
+
+    stop("Response Variable Required")
+
+  }
 
   if(is.bayesact(x)){
 
@@ -136,9 +142,9 @@ loo = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
       new_freq_formula =
         x$formula$forms[[freq_resp]]
 
-      new_freq_formula$pforms$f1[3] =
+      new_freq_formula$pforms[[1]][3] =
         str2expression(
-            paste(as.character(new_freq_formula$pforms$f1[3]),
+            paste(as.character(new_freq_formula$pforms[[1]][3]),
                   "+ offset(ded_offset)")
         )
 
