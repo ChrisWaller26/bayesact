@@ -2,7 +2,13 @@
 #'
 #' @export
 #'
-loo = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
+loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, ...){
+
+  if(is.null(resp)){
+
+    stop("Response Variable Required")
+
+  }
 
   if(is.bayesact(x)){
 
