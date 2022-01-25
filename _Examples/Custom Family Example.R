@@ -163,9 +163,11 @@ mv_model_fit =
                     dpar = alpha)
     ),
 
+    backend      = "rstan",
+    control      = NULL,
+
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    use_cmdstan = F,
 
     chains = 1,
     iter = 1000,
@@ -177,7 +179,8 @@ mv_model_fit =
     sample_prior = "no",
     freq_adj_fun = NULL,
     stanvars     = lnormpower_stanvars,
-    seed = 1
+    seed = 1,
+    save_pars    = NULL
   )
 
 #### Results ####
