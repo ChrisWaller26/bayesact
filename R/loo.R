@@ -2,7 +2,7 @@
 #'
 #' @export
 #'
-loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, ...){
+loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, ...){
 
   if(is.null(resp)){
 
@@ -71,7 +71,7 @@ loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, ...){
 
         sev_samples =
           sample(seq(iter_tot),
-                 min(ceiling(1e6 / nrow(new_freq_data)), iter_tot)
+                 min(ceiling(sample_max / nrow(new_freq_data)), iter_tot)
                  )
 
       }
