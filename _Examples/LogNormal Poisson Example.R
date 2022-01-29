@@ -26,7 +26,7 @@ set.seed(123456)
 
 regions = c("EMEA", "USC")
 
-freq_n = 5e3
+freq_n = 1e3
 
 # Defines a non-linear function for lambda to test model still works
 
@@ -164,32 +164,58 @@ mv_model_fit_prior =
 
     ded_name = "ded",
     ded_adj_min = 0.0001,
-    backend = "cmdstanr",
+    backend = "rstan",
 
-    chains = 4,
+    chains = 2,
     iter = 2000,
     warmup = 500,
 
     refresh = 100,
-    adapt_delta = 0.8,
-    max_treedepth = 10,
+    # adapt_delta = 0.8,
+    # max_treedepth = 10,
 
     mle = FALSE,
     sample_prior = "only",
     freq_adj_fun = NULL,
     stanvars     = NULL,
-
-    save_pars = save_pars(all = TRUE),
-    seed = 1
+    seed = 1,
+    save_pars = save_pars(all = TRUE)
   )
 
 
 #### Update Function ####
 
-mv_model_fit =
+mv_model_fit1 =
   bayesact::update(
     mv_model_fit_prior,
-    sample_prior = "no")
+    sample_prior = "no",
+    save_pars = save_pars(all = TRUE))
+
+mv_model_fit2 =
+  bayesact::update(
+    mv_model_fit_prior,
+    freq_formula =
+      bf(claimcount ~ 1),
+    sev_formula =
+      bf(loss | trunc(lb = ded) + cens(lim_exceed) ~
+           1,
+         sigma ~ 1
+      ),
+    prior = c(prior(normal(0, 0.5),
+                    class = Intercept,
+                    resp = claimcount),
+
+              prior(normal(8, 0.5),
+                    class = Intercept,
+                    resp = loss),
+
+              prior(normal(0, 0.25),
+                    class = Intercept,
+                    dpar = sigma,
+                    resp = loss)
+    ),
+    sample_prior = "no",
+    save_pars = save_pars(all = TRUE))
 
 #### LOOIC ####
 

@@ -2,7 +2,13 @@
 #'
 #' @export
 #'
-kfold = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
+kfold = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, ...){
+
+  if(is.null(resp)){
+
+    stop("Response Variable Required")
+
+  }
 
   if(is.bayesact(x)){
 
@@ -65,7 +71,7 @@ kfold = function(x, resp, newdata = NULL, sev_samples = NULL, ...){
 
         sev_samples =
           sample(seq(iter_tot),
-                 min(ceiling(1e6 / nrow(new_freq_data)), iter_tot)
+                 min(ceiling(sample_max / nrow(new_freq_data)), iter_tot)
                  )
 
       }
