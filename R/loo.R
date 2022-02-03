@@ -2,7 +2,7 @@
 #'
 #' @export
 #'
-loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, ...){
+loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, custom_pfun = NULL, ...){
 
   if(is.null(resp)){
 
@@ -47,25 +47,37 @@ loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 
           data_row_id = row_number()
         )
 
-      get_surv = function(ded, par1, par2, par3){
+      get_surv = function(x, sev_pars_n, ded, par1, par2, par3, par4, par5){
 
-        pfun = pfun_map[[x$bayesact$sev_family$family]]
+        if(x$bayesact$sev_family$family == "custom"){
 
-        if(sev_pars_n == 1){
+          if(is.null(custom_pfun)){
+            pfun = pfun_map[[x$bayesact$sev_family$name]]
+          }else{
+            pfun = custom_pfun
+          }
 
-          1 - pfun(ded, par1)
-
-        }else if(sev_pars_n == 2){
-
-          1 - pfun(ded, par1, par2)
+          if(is.null(pfun)){
+            stop("Must specify custom_pfun for custom families")
+          }
 
         }else{
+          pfun = pfun_map[[x$bayesact$sev_family$family]]
+        }
 
+        if(sev_pars_n == 1){
+          1 - pfun(ded, par1)
+        }else if(sev_pars_n == 2){
+          1 - pfun(ded, par1, par2)
+        }else if(sev_pars_n == 3){
           1 - pfun(ded, par1, par2, par3)
-
+        }else if(sev_pars_n == 4){
+          1 - pfun(ded, par1, par2, par3, par4)
+        }else{
+          1 - pfun(ded, par1, par2, par3, par4, par5)
         }
 
-        }
+      }
 
       if(is.null(sev_samples)){
 
@@ -128,7 +140,9 @@ loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 
                  get_surv(get(x$bayesact$ded_name),
                           get(sev_pars[1]),
                           get(sev_pars[2]),
-                          get(sev_pars[3])))
+                          get(sev_pars[3]),
+                          get(sev_pars[4]),
+                          get(sev_pars[5])))
         ) %>%
         group_by_at(
           names(new_freq_data)

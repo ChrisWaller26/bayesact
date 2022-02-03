@@ -2,7 +2,7 @@
 #'
 #' @export
 #'
-bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, ...){
+bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, custom_pfun = NULL,...){
 
   if(is.null(resp)){
 
@@ -112,22 +112,34 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
           data_row_id = row_number()
         )
 
-      get_surv = function(x, sev_pars_n, ded, par1, par2, par3){
+      get_surv = function(x, sev_pars_n, ded, par1, par2, par3, par4, par5){
 
-        pfun = pfun_map[[x$bayesact$sev_family$family]]
+        if(x$bayesact$sev_family$family == "custom"){
 
-        if(sev_pars_n == 1){
+          if(is.null(custom_pfun)){
+            pfun = pfun_map[[x$bayesact$sev_family$name]]
+          }else{
+            pfun = custom_pfun
+          }
 
-          1 - pfun(ded, par1)
-
-        }else if(sev_pars_n == 2){
-
-          1 - pfun(ded, par1, par2)
+          if(is.null(pfun)){
+            stop("Must specify custom_pfun for custom families")
+          }
 
         }else{
+          pfun = pfun_map[[x$bayesact$sev_family$family]]
+        }
 
+        if(sev_pars_n == 1){
+          1 - pfun(ded, par1)
+        }else if(sev_pars_n == 2){
+          1 - pfun(ded, par1, par2)
+        }else if(sev_pars_n == 3){
           1 - pfun(ded, par1, par2, par3)
-
+        }else if(sev_pars_n == 4){
+          1 - pfun(ded, par1, par2, par3, par4)
+        }else{
+          1 - pfun(ded, par1, par2, par3, par4, par5)
         }
 
         }
@@ -201,7 +213,9 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
                           get(x1$bayesact$ded_name),
                           get(paste0(sev_pars1[1], 1)),
                           get(paste0(sev_pars1[2], 1)),
-                          get(paste0(sev_pars1[3], 1)))),
+                          get(paste0(sev_pars1[3], 1)),
+                          get(paste0(sev_pars1[4], 1)),
+                          get(paste0(sev_pars1[5], 1)))),
 
           ded_offset2 =
             pmax(x2$bayesact$ded_adj_min,
@@ -210,7 +224,9 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
                           get(x2$bayesact$ded_name),
                           get(paste0(sev_pars2[1], 2)),
                           get(paste0(sev_pars2[2], 2)),
-                          get(paste0(sev_pars2[3], 2))))
+                          get(paste0(sev_pars2[3], 2)),
+                          get(paste0(sev_pars2[4], 2)),
+                          get(paste0(sev_pars2[5], 2))))
         ) %>%
         group_by_at(
           names(new_freq_data)
