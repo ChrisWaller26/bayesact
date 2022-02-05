@@ -4,33 +4,29 @@
 #'
 bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, custom_pfun = NULL,...){
 
-  if(is.null(resp)){
-
-    stop("Response Variable Required")
-
-  }
-
   if(is.bayesact(x1) != is.bayesact(x2)){
 
     stop("Both models should be of bayesact or non-bayesact class")
 
   }
 
-  if(x1$bayesact$sev_formula$resp  != x2$bayesact$sev_formula$resp |
-     x1$bayesact$freq_formula$resp != x2$bayesact$freq_formula$resp){
+  if(is.bayesact(x1) & (x1$bayesact$sev_formula$resp  != x2$bayesact$sev_formula$resp |
+     x1$bayesact$freq_formula$resp != x2$bayesact$freq_formula$resp)){
 
     stop("Both models should have the same response variable")
 
   }
 
-  if(!identical(x1$bayesact$freq_data, x2$bayesact$freq_data) |
-     !identical(x1$bayesact$sev_data, x2$bayesact$sev_data)){
-
-    stop("Both models should use the same data")
-
-  }
-
   if(is.bayesact(x1)){
+
+    if(is.null(resp)){
+      stop("Response Variable Required")
+    }
+
+    if(!identical(x1$bayesact$freq_data, x2$bayesact$freq_data) |
+       !identical(x1$bayesact$sev_data, x2$bayesact$sev_data)){
+      stop("Both models should use the same data")
+    }
 
     freq_link1 = get(x1$bayesact$freq_family$link)
     freq_link2 = get(x2$bayesact$freq_family$link)

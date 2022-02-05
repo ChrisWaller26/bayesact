@@ -4,13 +4,12 @@
 #'
 loo = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, custom_pfun = NULL, ...){
 
-  if(is.null(resp)){
-
-    stop("Response Variable Required")
-
-  }
 
   if(is.bayesact(x)){
+
+    if(is.null(resp)){
+      stop("Response Variable Required")
+    }
 
     freq_link = get(x$bayesact$freq_family$link)
 
