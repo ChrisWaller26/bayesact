@@ -4,13 +4,11 @@
 #'
 kfold = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max = 1e6, custom_pfun = NULL, ...){
 
-  if(is.null(resp)){
-
-    stop("Response Variable Required")
-
-  }
-
   if(is.bayesact(x)){
+
+    if(is.null(resp)){
+      stop("Response Variable Required")
+    }
 
     freq_link = get(x$bayesact$freq_family$link)
 
@@ -47,7 +45,7 @@ kfold = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max 
           data_row_id = row_number()
         )
 
-      get_surv = function(x, sev_pars_n, ded, par1, par2, par3, par4, par5){
+      get_surv = function(ded, par1, par2, par3, par4, par5){
 
         if(x$bayesact$sev_family$family == "custom"){
 

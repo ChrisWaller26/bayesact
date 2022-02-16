@@ -1,7 +1,7 @@
 Package: bayesact
 Type: Package
 Title: The Bayesian Actuarial Package
-Version: 0.1.5
+Version: 0.1.6
 Author: Chris Waller, Zongwen Tan
 Maintainer: Chris Waller <chriswaller26@gmail.com>, Zongwen Tan <tzw0423@hotmail.com>
 Description: This package has been developed to create simple functions for 
