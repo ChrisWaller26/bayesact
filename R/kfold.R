@@ -45,7 +45,7 @@ kfold = function(x, resp = NULL, newdata = NULL, sev_samples = NULL, sample_max 
           data_row_id = row_number()
         )
 
-      get_surv = function(x, sev_pars_n, ded, par1, par2, par3, par4, par5){
+      get_surv = function(ded, par1, par2, par3, par4, par5){
 
         if(x$bayesact$sev_family$family == "custom"){
 
