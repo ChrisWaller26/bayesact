@@ -4,7 +4,15 @@
 \alias{kfold}
 \title{K-Fold Cross Validation for Bayesact Class}
 \usage{
-kfold(x, resp, newdata = NULL, sev_samples = NULL, ...)
+kfold(
+  x,
+  resp = NULL,
+  newdata = NULL,
+  sev_samples = NULL,
+  sample_max = 1e+06,
+  custom_pfun = NULL,
+  ...
+)
 }
 \description{
 K-Fold Cross Validation for Bayesact Class

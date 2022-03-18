@@ -27,7 +27,7 @@ brms_freq_sev(
   max_treedepth = 8,
   control = NULL,
   seed = sample.int(.Machine$integer.max, 1),
-  save_pars = save_pars(all = FALSE),
+  save_pars = NULL,
   ...
 )
 }

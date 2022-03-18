@@ -101,8 +101,15 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
 
     }else{
 
-      new_freq_data =
+      new_freq_data_1 =
         x1$data %>%
+        filter(freq == 1) %>%
+        mutate(
+          data_row_id = row_number()
+        )
+
+      new_freq_data_2 =
+        x2$data %>%
         filter(freq == 1) %>%
         mutate(
           data_row_id = row_number()
@@ -144,39 +151,35 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
 
         sev_samples =
           sample(seq(iter_tot),
-                 min(ceiling(sample_max / nrow(new_freq_data)), iter_tot)
+                 min(ceiling(sample_max / nrow(new_freq_data_1)), iter_tot)
                  )
 
       }
 
-      sev_pars = c(sev_pars1, sev_pars2)
-      x_i = rep(1:2, c(sev_pars_n1, sev_pars_n2))
-
-      new_freq_data =
+      new_freq_data_1 =
         lapply(
-          seq(length(x_i)),
+          seq(sev_pars_n1),
           function(i){
 
-            par = sev_pars[[i]]
-            x = list(x1, x2)[[x_i[i]]]
+            par = sev_pars1[i]
 
             output =
               posterior_epred(
-                x,
+                x1,
                 resp = sev_resp,
                 dpar = par,
-                newdata = new_freq_data,
+                newdata = new_freq_data_1,
                 draw_ids = sev_samples
               ) %>%
-                as.data.frame() %>%
-                mutate(
-                  iter_number = row_number()
-                ) %>%
-                pivot_longer(
-                  cols = -iter_number,
-                  names_to = "data_row_id",
-                  values_to = paste0(par, x_i[i])
-                ) %>%
+              as.data.frame() %>%
+              mutate(
+                iter_number = row_number()
+              ) %>%
+              pivot_longer(
+                cols = -iter_number,
+                names_to = "data_row_id",
+                values_to = paste0(par, 1)
+              ) %>%
               mutate(
                 data_row_id = as.integer(substr(data_row_id, 2, 1000))
               )
@@ -185,10 +188,10 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
 
               output =
                 output %>%
-                  select(
-                    -iter_number,
-                    -data_row_id
-                  )
+                select(
+                  -iter_number,
+                  -data_row_id
+                )
 
             }
 
@@ -198,11 +201,11 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
         ) %>%
         bind_cols() %>%
         left_join(
-          new_freq_data,
+          new_freq_data_1,
           by = "data_row_id"
         ) %>%
         mutate(
-          ded_offset1 =
+          ded_offset =
             pmax(x1$bayesact$ded_adj_min,
                  get_surv(x1,
                           sev_pars_n1,
@@ -211,9 +214,67 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
                           get(paste0(sev_pars1[2], 1)),
                           get(paste0(sev_pars1[3], 1)),
                           get(paste0(sev_pars1[4], 1)),
-                          get(paste0(sev_pars1[5], 1)))),
+                          get(paste0(sev_pars1[5], 1))))
+        ) %>%
+        group_by_at(
+          names(new_freq_data_1)
+        ) %>%
+        summarise(
+          ded_offset = mean(freq_link1(ded_offset)),
+          .groups = "keep"
+        ) %>%
+        ungroup()
 
-          ded_offset2 =
+      new_freq_data_2 =
+        lapply(
+          seq(sev_pars_n2),
+          function(i){
+
+            par = sev_pars2[i]
+
+            output =
+              posterior_epred(
+                x2,
+                resp = sev_resp,
+                dpar = par,
+                newdata = new_freq_data_2,
+                draw_ids = sev_samples
+              ) %>%
+              as.data.frame() %>%
+              mutate(
+                iter_number = row_number()
+              ) %>%
+              pivot_longer(
+                cols = -iter_number,
+                names_to = "data_row_id",
+                values_to = paste0(par, 2)
+              ) %>%
+              mutate(
+                data_row_id = as.integer(substr(data_row_id, 2, 1000))
+              )
+
+            if(i > 1){
+
+              output =
+                output %>%
+                select(
+                  -iter_number,
+                  -data_row_id
+                )
+
+            }
+
+            output
+
+          }
+        ) %>%
+        bind_cols() %>%
+        left_join(
+          new_freq_data_2,
+          by = "data_row_id"
+        ) %>%
+        mutate(
+          ded_offset =
             pmax(x2$bayesact$ded_adj_min,
                  get_surv(x2,
                           sev_pars_n2,
@@ -225,11 +286,10 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
                           get(paste0(sev_pars2[5], 2))))
         ) %>%
         group_by_at(
-          names(new_freq_data)
+          names(new_freq_data_2)
         ) %>%
         summarise(
-          ded_offset1 = mean(freq_link1(ded_offset1)),
-          ded_offset2 = mean(freq_link2(ded_offset2)),
+          ded_offset = mean(freq_link2(ded_offset)),
           .groups = "keep"
         ) %>%
         ungroup()
@@ -242,12 +302,12 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
       new_freq_formula1$pforms[[1]][3] =
         str2expression(
           paste(as.character(new_freq_formula1$pforms[[1]][3]),
-                "+ offset(ded_offset1)")
+                "+ offset(ded_offset)")
         )
       new_freq_formula2$pforms[[1]][3] =
         str2expression(
           paste(as.character(new_freq_formula2$pforms[[1]][3]),
-                "+ offset(ded_offset2)")
+                "+ offset(ded_offset)")
         )
 
       freq_prior1 =
@@ -265,7 +325,7 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
         brm(
           formula       = new_freq_formula1,
           family        = x1$bayesact$freq_family,
-          data          = new_freq_data,
+          data          = new_freq_data_1,
           prior         = freq_prior1,
           chains        = x1$bayesact$chains,
           iter          = x1$bayesact$iter,
@@ -283,7 +343,7 @@ bayes_factor = function(x1, x2, resp = NULL, newdata = NULL, sev_samples = NULL,
         brm(
           formula       = new_freq_formula2,
           family        = x2$bayesact$freq_family,
-          data          = new_freq_data,
+          data          = new_freq_data_2,
           prior         = freq_prior2,
           chains        = x2$bayesact$chains,
           iter          = x2$bayesact$iter,
